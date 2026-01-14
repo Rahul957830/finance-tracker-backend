@@ -42,3 +42,10 @@ export default async function handler(req, res) {
     return res.status(500).json({ error: "Internal error" });
   }
 }
+
+
+
+if (req.method === "GET") {
+  const test = await kv.get("event:TEST_CC_ICICI_7003_202601");
+  return res.status(200).json(test || { error: "Not found" });
+}
