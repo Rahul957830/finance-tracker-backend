@@ -1,15 +1,17 @@
 import { kv } from "@vercel/kv";
 
+export const dynamic = "force-dynamic";
+
 export async function GET() {
-  const testKey = "event:TEST_CC_ICICI_7003_202601";
-  const data = await kv.get(testKey);
+  const key = "event:TEST_CC_ICICI_7003_202601";
+  const value = await kv.get(key);
 
   return new Response(
     JSON.stringify({
       ok: true,
-      route: "app/api/webhook",
-      key: testKey,
-      value: data || null,
+      source: "app-router",
+      key,
+      value: value ?? null,
     }),
     { status: 200 }
   );
@@ -21,9 +23,7 @@ export async function POST(req) {
 
     if (!body || !Array.isArray(body.events)) {
       return new Response(
-        JSON.stringify({
-          error: "Invalid payload. Expected { events: [] }",
-        }),
+        JSON.stringify({ error: "Expected { events: [] }" }),
         { status: 400 }
       );
     }
@@ -34,27 +34,17 @@ export async function POST(req) {
       if (!event.event_id) continue;
 
       const key = `event:${event.event_id}`;
-
       await kv.set(key, event);
-      await kv.lpush("index:events:recent", key);
-      await kv.lpush(`index:events:${event.category}`, key);
-
       written.push(key);
     }
 
     return new Response(
-      JSON.stringify({
-        ok: true,
-        written: written.length,
-        keys: written,
-      }),
+      JSON.stringify({ ok: true, written }),
       { status: 200 }
     );
-  } catch (err) {
-    console.error("Webhook error:", err);
-
+  } catch (e) {
     return new Response(
-      JSON.stringify({ error: "Internal error" }),
+      JSON.stringify({ error: "Internal error", detail: String(e) }),
       { status: 500 }
     );
   }
