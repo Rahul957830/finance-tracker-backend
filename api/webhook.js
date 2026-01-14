@@ -1,7 +1,27 @@
 import { kv } from "@vercel/kv";
 
 export default async function handler(req, res) {
-  // Only allow POST
+
+  /* =========================================================
+     GET  → Debug / verification only (remove later)
+     ========================================================= */
+  if (req.method === "GET") {
+    try {
+      const testKey = "event:TEST_CC_ICICI_7003_202601";
+      const data = await kv.get(testKey);
+
+      return res.status(200).json(
+        data || { error: "Not found in KV", key: testKey }
+      );
+    } catch (err) {
+      console.error("GET error:", err);
+      return res.status(500).json({ error: "KV read failed" });
+    }
+  }
+
+  /* =========================================================
+     POST → Main webhook (canonical events ingestion)
+     ========================================================= */
   if (req.method !== "POST") {
     return res.status(405).json({ error: "Method not allowed" });
   }
@@ -19,33 +39,30 @@ export default async function handler(req, res) {
     const written = [];
 
     for (const event of body.events) {
-      if (!event.event_id) continue;
+      if (!event || !event.event_id) continue;
 
       const key = `event:${event.event_id}`;
 
       // Idempotent write
       await kv.set(key, event);
 
-      // Indexes for later widget queries
+      // Indexes for widgets / queries
       await kv.lpush("index:events:recent", key);
-      await kv.lpush(`index:events:${event.category}`, key);
+      if (event.category) {
+        await kv.lpush(`index:events:${event.category}`, key);
+      }
 
       written.push(key);
     }
 
     return res.status(200).json({
       ok: true,
-      written: written.length
+      written: written.length,
+      keys: written
     });
+
   } catch (err) {
-    console.error(err);
-    return res.status(500).json({ error: "Internal error" });
+    console.error("Webhook POST error:", err);
+    return res.status(500).json({ error: "Internal server error" });
   }
-}
-
-
-
-if (req.method === "GET") {
-  const test = await kv.get("event:TEST_CC_ICICI_7003_202601");
-  return res.status(200).json(test || { error: "Not found" });
 }
