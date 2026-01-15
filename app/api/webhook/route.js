@@ -49,6 +49,9 @@ export async function POST(req) {
       const key = `event:${Date.now()}:${event.event_id}`;
       await kv.set(key, event);
       storedKeys.push(key);
+       if (event.category === "CREDIT_CARD") {
+    await upsertCreditCardState(event);
+  }
     }
 
     // 3️⃣ Response
@@ -69,5 +72,42 @@ export async function POST(req) {
       }),
       { status: 500 }
     );
+  }
+}
+
+async function upsertCreditCardState(event) {
+  const billId = event.event_id;
+  const ccKey = `cc:${billId}`;
+
+  const existing = (await kv.get(ccKey)) || {};
+
+  const updated = {
+    ...existing,
+
+    bill_id: billId,
+    provider: event.provider,
+    source_id: event.source_id,
+    statement_month: event.dates?.statement_month,
+
+    amount_due: event.amount?.value,
+    due_date: event.dates?.due_date,
+    days_left: event.status?.days_left,
+
+    last_statement_event_id: event.event_id,
+    statement_extracted_at: new Date().toISOString(),
+
+    current_status: event.status?.payment_status,
+    updated_at: new Date().toISOString(),
+  };
+
+  await kv.set(ccKey, updated);
+
+  // Index updates
+  await kv.sadd("index:cc:open", billId);
+
+  if (updated.current_status === "OVERDUE") {
+    await kv.sadd("index:cc:overdue", billId);
+  } else {
+    await kv.srem("index:cc:overdue", billId);
   }
 }
