@@ -1,28 +1,15 @@
 import { kv } from "@vercel/kv";
 
-export const dynamic = "force-dynamic";
-
 export async function GET() {
-  try {
-    // Get last 10 event keys
-    const keys = await kv.keys("event:*");
+  const [open, overdue, paid] = await Promise.all([
+    kv.smembers("index:cc:open"),
+    kv.smembers("index:cc:overdue"),
+    kv.smembers("index:cc:paid"),
+  ]);
 
-    // Fetch values
-    const events = await Promise.all(
-      keys.slice(-10).map(async (key) => ({
-        key,
-        value: await kv.get(key),
-      }))
-    );
-
-    return new Response(
-      JSON.stringify({ ok: true, count: events.length, events }, null, 2),
-      { status: 200, headers: { "Content-Type": "application/json" } }
-    );
-  } catch (err) {
-    return new Response(
-      JSON.stringify({ ok: false, error: err.message }),
-      { status: 500 }
-    );
-  }
+  return Response.json({
+    open: open ?? [],
+    overdue: overdue ?? [],
+    paid: paid ?? [],
+  });
 }
