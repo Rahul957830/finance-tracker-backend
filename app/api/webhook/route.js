@@ -101,13 +101,17 @@ async function upsertCreditCardState(event) {
   };
 
   await kv.set(ccKey, updated);
+// --- Index updates (single source of truth) ---
 
-  // Index updates
+// Always remove first (idempotent)
+await kv.srem("index:cc:open", billId);
+await kv.srem("index:cc:overdue", billId);
+
+// Re-add based on current status
+if (updated.current_status === "OVERDUE") {
+  await kv.sadd("index:cc:overdue", billId);
+} else {
+  // DUE == OPEN
   await kv.sadd("index:cc:open", billId);
-
-  if (updated.current_status === "OVERDUE") {
-    await kv.sadd("index:cc:overdue", billId);
-  } else {
-    await kv.srem("index:cc:overdue", billId);
-  }
+} 
 }
