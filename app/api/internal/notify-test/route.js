@@ -1,11 +1,16 @@
 import { sendPushover } from "@/lib/notify/pushover";
 
+export const dynamic = "force-dynamic";
+
 export async function GET() {
   await sendPushover({
     title: "Finance Tracker",
-    message: "Backend notification test ✅",
+    message: "Backend → Pushover notification test ✅",
     sound: "pushover",
   });
 
-  return Response.json({ ok: true });
+  return new Response(
+    JSON.stringify({ ok: true, sent: true }),
+    { status: 200 }
+  );
 }
