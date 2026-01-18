@@ -9,6 +9,8 @@ const restoredStatus = existing.days_left < 0 ? "OVERDUE" : "DUE";
 await kv.set(ccKey, {
   ...existing,
   paid: false,
+  paid_at: null,
+  payment_method: null,
   current_status: restoredStatus,
   updated_at: new Date().toISOString()
 });
