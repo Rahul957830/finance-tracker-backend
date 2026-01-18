@@ -1,13 +1,12 @@
 import { kv } from "@vercel/kv";
-import { NextResponse } from "next/server";
 
 export async function POST(request) {
   try {
-    const body = await request.json(); // ✅ THIS is the key line
+    const body = await request.json();
     const billId = body.bill_id;
 
     if (!billId) {
-      return NextResponse.json(
+      return Response.json(
         { ok: false, error: "bill_id missing" },
         { status: 400 }
       );
@@ -17,7 +16,7 @@ export async function POST(request) {
     const existing = await kv.get(ccKey);
 
     if (!existing) {
-      return NextResponse.json({ ok: true, skipped: true });
+      return Response.json({ ok: true, skipped: true });
     }
 
     const restoredStatus =
@@ -32,7 +31,16 @@ export async function POST(request) {
       updated_at: new Date().toISOString(),
     });
 
-    await kv.srem(`index:cc:paid:${existing.visibility_month}`, billId);
+    // indexes
+    if (existing.visibility_month) {
+      await kv.srem(
+        `index:cc:paid:${existing.visibility_month}`,
+        billId
+      );
+    }
+
+    await kv.srem("index:cc:open", billId);
+    await kv.srem("index:cc:overdue", billId);
 
     if (restoredStatus === "OVERDUE") {
       await kv.sadd("index:cc:overdue", billId);
@@ -40,9 +48,9 @@ export async function POST(request) {
       await kv.sadd("index:cc:open", billId);
     }
 
-    return NextResponse.json({ ok: true });
+    return Response.json({ ok: true });
   } catch (err) {
     console.error("cc-unpaid error", err);
-    return NextResponse.json({ ok: false }, { status: 500 });
+    return Response.json({ ok: false }, { status: 500 });
   }
 }
