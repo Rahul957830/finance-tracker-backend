@@ -96,7 +96,8 @@ async function upsertCreditCardState(event) {
     last_statement_event_id: event.event_id,
     statement_extracted_at: new Date().toISOString(),
 
-    current_status: event.status?.payment_status,
+    current_status:
+  event.status?.payment_status ?? existing.current_status,
     updated_at: new Date().toISOString(),
   };
 
