@@ -1,5 +1,8 @@
 import { kv } from "@vercel/kv";
 
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
 export async function GET() {
   const [open, overdue, paid] = await Promise.all([
     kv.smembers("index:cc:open"),
