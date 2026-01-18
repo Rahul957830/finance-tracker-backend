@@ -4,10 +4,10 @@ export const dynamic = "force-dynamic";
 
 export async function GET() {
   await sendPushover({
-    title: "Finance Tracker",
-    message: "Notify test with sound 🔔",
-    priority: 1,
-    sound: "cashregister",
+    title: "Finance Tracker 🚨",
+    message: "EMERGENCY test – this MUST make sound",
+    priority: 2,
+    sound: "siren",
   });
 
   return new Response(
