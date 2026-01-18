@@ -5,8 +5,9 @@ export const dynamic = "force-dynamic";
 export async function GET() {
   await sendPushover({
     title: "Finance Tracker",
-    message: "Notify test from backend ✅",
-    sound: "pushover",
+    message: "Notify test with sound 🔔",
+    priority: 1,
+    sound: "cashregister",
   });
 
   return new Response(
