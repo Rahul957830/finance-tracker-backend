@@ -1,9 +1,9 @@
 import { kv } from "@vercel/kv";
 import { NextResponse } from "next/server";
 
-export async function POST(req) {
+export async function POST(request) {
   try {
-    const body = await req.json();
+    const body = await request.json(); // ✅ request, not req
     const billId = body.bill_id;
 
     if (!billId) {
@@ -29,7 +29,6 @@ export async function POST(req) {
       updated_at: new Date().toISOString(),
     });
 
-    // indexes
     await kv.srem(`index:cc:paid:${existing.visibility_month}`, billId);
 
     if (restoredStatus === "OVERDUE") {
@@ -41,6 +40,6 @@ export async function POST(req) {
     return NextResponse.json({ ok: true });
   } catch (err) {
     console.error("cc-unpaid error", err);
-    return NextResponse.json({ ok: false, error: "internal error" }, { status: 500 });
+    return NextResponse.json({ ok: false }, { status: 500 });
   }
 }
