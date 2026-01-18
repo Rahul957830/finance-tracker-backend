@@ -3,11 +3,14 @@ import { NextResponse } from "next/server";
 
 export async function POST(request) {
   try {
-    const body = await request.json(); // ✅ request, not req
+    const body = await request.json(); // ✅ THIS is the key line
     const billId = body.bill_id;
 
     if (!billId) {
-      return NextResponse.json({ ok: false, error: "bill_id missing" }, { status: 400 });
+      return NextResponse.json(
+        { ok: false, error: "bill_id missing" },
+        { status: 400 }
+      );
     }
 
     const ccKey = `cc:${billId}`;
