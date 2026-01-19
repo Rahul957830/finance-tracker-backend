@@ -2,118 +2,140 @@ import { kv } from "@vercel/kv";
 
 export const dynamic = "force-dynamic";
 
-/**
- * Telegram sends POST requests here when a button is clicked
- */
+const TELEGRAM_API = `https://api.telegram.org/bot${process.env.TELEGRAM_BOT_TOKEN}`;
+
+async function answerCallback(callbackId, text) {
+  await fetch(`${TELEGRAM_API}/answerCallbackQuery`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      callback_query_id: callbackId,
+      text,
+      show_alert: false,
+    }),
+  });
+}
+
+async function editMessage(chat_id, message_id, text, buttons = null) {
+  const payload = {
+    chat_id,
+    message_id,
+    text,
+    parse_mode: "HTML",
+  };
+
+  if (buttons) {
+    payload.reply_markup = { inline_keyboard: buttons };
+  }
+
+  await fetch(`${TELEGRAM_API}/editMessageText`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+}
+
 export async function POST(req) {
   try {
     const update = await req.json();
-
-    // Telegram callback payload
     const callback = update.callback_query;
-    if (!callback) {
-      return new Response("ignored", { status: 200 });
-    }
+    if (!callback) return new Response("ignored", { status: 200 });
 
-    const {
-      id: callbackId,
-      data,
-      from,
-      message,
-    } = callback;
-
-    // Decode payload
-    // Supported formats:
-    // ACTION|billId
-    // META_METHOD:METHOD|billId
-    const [rawAction, billId] = (data || "").split("|");
-
-    let action = rawAction;
-    let metaValue = null;
-
-    if (rawAction?.includes(":")) {
-      const parts = rawAction.split(":");
-      action = parts[0];
-      metaValue = parts[1];
-    }
+    const { id, data, from, message } = callback;
+    const [action, billId, metaValue] = (data || "").split("|");
 
     console.log("📲 TELEGRAM_CALLBACK", {
       action,
-      metaValue,
       billId,
+      metaValue,
       from: from?.username,
       chat_id: message?.chat?.id,
     });
 
-    // Store raw click (debug only)
+    // persist raw click
     await kv.set(`telegram:click:${Date.now()}`, {
       action,
-      metaValue,
       bill_id: billId,
-      user: from?.username,
+      metaValue,
       chat_id: message?.chat?.id,
       message_id: message?.message_id,
     });
 
-    /* ============================
-       BUTTON ACTION HANDLERS
-    ============================ */
+    // --- ACTION HANDLERS ---
 
-    // MARK PAID → open metadata selector
+    if (action === "VIEW") {
+      await answerCallback(id, "Showing details");
+      return new Response("ok", { status: 200 });
+    }
+
     if (action === "MARK_PAID") {
-      await kv.set(`cc:${billId}:override_status`, "PAID_PENDING_META");
+      await kv.set(`cc:${billId}:status`, "PAID_PENDING_META");
+      await answerCallback(id, "Payment marked. Add details.");
+
+      await editMessage(
+        message.chat.id,
+        message.message_id,
+        message.text,
+        [
+          [
+            { text: "📅 Payment Date", callback_data: `ADD_META|${billId}|DATE` },
+            { text: "💳 Payment Method", callback_data: `ADD_META|${billId}|METHOD` },
+          ],
+          [{ text: "❌ Cancel", callback_data: `CANCEL|${billId}` }],
+        ]
+      );
+      return new Response("ok", { status: 200 });
     }
 
-    // SET DATE
-    if (action === "DATE_TODAY" || action === "DATE_YESTERDAY") {
-      const date = new Date();
-      if (action === "DATE_YESTERDAY") {
-        date.setDate(date.getDate() - 1);
-      }
+    if (action === "ADD_META") {
+      await answerCallback(id, "Choose payment details");
 
-      const meta = (await kv.get(`cc:${billId}:payment_meta`)) || {};
-      meta.paid_at = date.toISOString().slice(0, 10);
-      await kv.set(`cc:${billId}:payment_meta`, meta);
+      await editMessage(
+        message.chat.id,
+        message.message_id,
+        "Select payment details:",
+        [
+          [
+            { text: "📅 Paid Today", callback_data: `META_DATE|${billId}|TODAY` },
+            { text: "📅 Choose Date", callback_data: `META_DATE|${billId}|CUSTOM` },
+          ],
+          [
+            { text: "💳 GPay", callback_data: `META_METHOD|${billId}|GPAY` },
+            { text: "💳 Paytm", callback_data: `META_METHOD|${billId}|PAYTM` },
+            { text: "💳 Netbanking", callback_data: `META_METHOD|${billId}|NETBANKING` },
+          ],
+          [{ text: "🔙 Back", callback_data: `MARK_PAID|${billId}` }],
+        ]
+      );
+      return new Response("ok", { status: 200 });
     }
 
-    // SET PAYMENT METHOD
-    if (action === "META_METHOD") {
-      const meta = (await kv.get(`cc:${billId}:payment_meta`)) || {};
-      meta.method = metaValue;
-      await kv.set(`cc:${billId}:payment_meta`, meta);
-    }
-
-    // SNOOZE (30 minutes)
     if (action === "SNOOZE_30") {
-      const until = Date.now() + 30 * 60 * 1000;
-      await kv.set(`cc:${billId}:snooze_until`, until);
+      await kv.set(`cc:${billId}:snooze_until`, Date.now() + 30 * 60 * 1000);
+      await answerCallback(id, "Snoozed for 30 minutes");
+      return new Response("ok", { status: 200 });
     }
 
-    // DISMISS
+    if (action === "REMIND_TOMORROW") {
+      const tomorrow = new Date();
+      tomorrow.setDate(tomorrow.getDate() + 1);
+      tomorrow.setHours(9, 0, 0, 0);
+
+      await kv.set(`cc:${billId}:snooze_until`, tomorrow.getTime());
+      await answerCallback(id, "Will remind tomorrow");
+      return new Response("ok", { status: 200 });
+    }
+
     if (action === "DISMISS") {
       await kv.set(`cc:${billId}:dismissed`, true);
+      await answerCallback(id, "Dismissed");
+      return new Response("ok", { status: 200 });
     }
 
-    // VIEW (no state change, log only)
-    if (action === "VIEW") {
-      // intentionally no-op (future expansion)
-    }
-
-    /* ============================
-       TELEGRAM ACK (MANDATORY)
-    ============================ */
-
-    return new Response(
-      JSON.stringify({
-        method: "answerCallbackQuery",
-        callback_query_id: callbackId,
-        text: "✔️ Action received",
-        show_alert: false,
-      }),
-      { status: 200 }
-    );
+    await answerCallback(id, "Action noted");
+    return new Response("ok", { status: 200 });
   } catch (err) {
-    console.error("telegram callback error", err);
+    console.error("Telegram callback error", err);
     return new Response("error", { status: 200 });
   }
 }
