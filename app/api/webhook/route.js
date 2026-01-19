@@ -121,9 +121,7 @@ if (decision?.notify) {
     priority: decision.priority,
   });
 }
-
-      
-
+}
       // --- Update CC state (unchanged from your logic) ---
       const updated = {
         ...existing,
