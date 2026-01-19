@@ -1,6 +1,3 @@
-import { notifyTelegram } from "@/lib/notify/telegram";
-import { evaluateNotificationRules } from "@/lib/notify/rules";
-
 import { kv } from "@vercel/kv";
 
 export const dynamic = "force-dynamic";
