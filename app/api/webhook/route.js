@@ -1,3 +1,5 @@
+
+import { notifyTelegram } from "../../../lib/notify/telegram";
 import { buildTelegramMessage } from "../../../lib/notify/messageBuilder";
 
 import { evaluateNotificationRules } from "../../../lib/notify/rules";
