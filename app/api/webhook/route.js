@@ -1,7 +1,6 @@
 import { notifyTelegram } from "@/lib/notify/telegram";
 import { evaluateNotificationRules } from "@/lib/notify/rules";
 
-
 import { kv } from "@vercel/kv";
 
 export const dynamic = "force-dynamic";
@@ -53,9 +52,21 @@ export async function POST(req) {
       const key = `event:${Date.now()}:${event.event_id}`;
       await kv.set(key, event);
       storedKeys.push(key);
-       if (event.category === "CREDIT_CARD") {
-    await upsertCreditCardState(event);
-  }
+
+      let cardState = null;
+
+      if (event.category === "CREDIT_CARD") {
+        cardState = await upsertCreditCardState(event);
+      }
+
+      const notification = evaluateNotificationRules(event, cardState);
+
+      if (notification) {
+        await notifyTelegram({
+          text: notification.text,
+          buttons: notification.buttons,
+        });
+      }
     }
 
     // 3️⃣ Response
@@ -101,22 +112,26 @@ async function upsertCreditCardState(event) {
     statement_extracted_at: new Date().toISOString(),
 
     current_status:
-  event.status?.payment_status ?? existing.current_status,
+      event.status?.payment_status ?? existing.current_status,
     updated_at: new Date().toISOString(),
   };
 
   await kv.set(ccKey, updated);
-// --- Index updates (single source of truth) ---
 
-// Always remove first (idempotent)
-await kv.srem("index:cc:open", billId);
-await kv.srem("index:cc:overdue", billId);
+  // --- Index updates (single source of truth) ---
 
-// Re-add based on current status
-if (updated.current_status === "OVERDUE") {
-  await kv.sadd("index:cc:overdue", billId);
-} else {
-  // DUE == OPEN
-  await kv.sadd("index:cc:open", billId);
-} 
+  // Always remove first (idempotent)
+  await kv.srem("index:cc:open", billId);
+  await kv.srem("index:cc:overdue", billId);
+
+  // Re-add based on current status
+  if (updated.current_status === "OVERDUE") {
+    await kv.sadd("index:cc:overdue", billId);
+  } else {
+    // DUE == OPEN
+    await kv.sadd("index:cc:open", billId);
+  }
+
+  // ✅ IMPORTANT: return state for rules
+  return updated;
 }
