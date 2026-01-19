@@ -115,11 +115,10 @@ if (decision?.notify) {
     decision,
   });
 
-  console.log("📨 TELEGRAM_MESSAGE_PREVIEW", {
-    bill_id: billId,
-    priority: decision.priority,
-    reason: decision.reason,
+ if (decision.notify && text) {
+  await notifyTelegram({
     text,
+    priority: decision.priority,
   });
 }
 
