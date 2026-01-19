@@ -1,6 +1,4 @@
-import { notifyTelegram } from "../../../lib/notify/telegram";
 import { evaluateNotificationRules } from "../../../lib/notify/rules";
-
 import { kv } from "@vercel/kv";
 
 export const dynamic = "force-dynamic";
@@ -43,39 +41,85 @@ export async function POST(req) {
       );
     }
 
-    // 2️⃣ TEMP storage (do NOT design schema yet)
-    const storedKeys = [];
+    const decisions = [];
 
     for (const event of body.events) {
       if (!event.event_id) continue;
 
-      const key = `event:${Date.now()}:${event.event_id}`;
-      await kv.set(key, event);
-      storedKeys.push(key);
+      // Store raw event (unchanged)
+      const rawKey = `event:${Date.now()}:${event.event_id}`;
+      await kv.set(rawKey, event);
 
-      let cardState = null;
+      // Only evaluate rules for credit cards
+      if (event.category !== "CREDIT_CARD") continue;
 
-      if (event.category === "CREDIT_CARD") {
-        cardState = await upsertCreditCardState(event);
-      }
+      const billId = event.event_id;
+      const ccKey = `cc:${billId}`;
 
-      const notification = evaluateNotificationRules(event, cardState);
+      const existing = (await kv.get(ccKey)) || {};
 
-      if (notification) {
-        await notifyTelegram({
-          text: notification.text,
-          buttons: notification.buttons,
-        });
+      // --- Derive state ---
+      const previousStatus = existing.current_status;
+      const newStatus = event.status?.payment_status;
+
+      const was_status_changed =
+        previousStatus && newStatus && previousStatus !== newStatus;
+
+      const is_new_statement =
+        existing.statement_month &&
+        event.dates?.statement_month &&
+        existing.statement_month !== event.dates.statement_month;
+
+      // --- Feed rule engine ---
+      const decision = evaluateNotificationRules({
+        bill_id: billId,
+        provider: event.provider,
+        statement_month: event.dates?.statement_month,
+        status: newStatus,
+        days_left: event.status?.days_left,
+        is_new_statement,
+        was_status_changed,
+      });
+
+      decisions.push({
+        bill_id: billId,
+        decision,
+      });
+
+      // --- Update CC state (unchanged from your logic) ---
+      const updated = {
+        ...existing,
+        bill_id: billId,
+        provider: event.provider,
+        source_id: event.source_id,
+        statement_month: event.dates?.statement_month,
+        amount_due: event.amount?.value,
+        due_date: event.dates?.due_date,
+        days_left: event.status?.days_left,
+        last_statement_event_id: event.event_id,
+        statement_extracted_at: new Date().toISOString(),
+        current_status: newStatus ?? existing.current_status,
+        updated_at: new Date().toISOString(),
+      };
+
+      await kv.set(ccKey, updated);
+
+      // Index updates (idempotent)
+      await kv.srem("index:cc:open", billId);
+      await kv.srem("index:cc:overdue", billId);
+
+      if (updated.current_status === "OVERDUE") {
+        await kv.sadd("index:cc:overdue", billId);
+      } else if (updated.current_status === "OPEN") {
+        await kv.sadd("index:cc:open", billId);
       }
     }
 
-    // 3️⃣ Response
     return new Response(
       JSON.stringify({
         ok: true,
-        received: body.events.length,
-        stored: storedKeys.length,
-        keys: storedKeys,
+        evaluated: decisions.length,
+        decisions,
       }),
       { status: 200 }
     );
@@ -88,50 +132,4 @@ export async function POST(req) {
       { status: 500 }
     );
   }
-}
-
-async function upsertCreditCardState(event) {
-  const billId = event.event_id;
-  const ccKey = `cc:${billId}`;
-
-  const existing = (await kv.get(ccKey)) || {};
-
-  const updated = {
-    ...existing,
-
-    bill_id: billId,
-    provider: event.provider,
-    source_id: event.source_id,
-    statement_month: event.dates?.statement_month,
-
-    amount_due: event.amount?.value,
-    due_date: event.dates?.due_date,
-    days_left: event.status?.days_left,
-
-    last_statement_event_id: event.event_id,
-    statement_extracted_at: new Date().toISOString(),
-
-    current_status:
-      event.status?.payment_status ?? existing.current_status,
-    updated_at: new Date().toISOString(),
-  };
-
-  await kv.set(ccKey, updated);
-
-  // --- Index updates (single source of truth) ---
-
-  // Always remove first (idempotent)
-  await kv.srem("index:cc:open", billId);
-  await kv.srem("index:cc:overdue", billId);
-
-  // Re-add based on current status
-  if (updated.current_status === "OVERDUE") {
-    await kv.sadd("index:cc:overdue", billId);
-  } else {
-    // DUE == OPEN
-    await kv.sadd("index:cc:open", billId);
-  }
-
-  // ✅ IMPORTANT: return state for rules
-  return updated;
 }
