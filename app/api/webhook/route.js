@@ -115,13 +115,31 @@ if (decision?.notify) {
     decision,
   });
 
- if (decision.notify && text) {
-  await notifyTelegram({
-    text,
-    priority: decision.priority,
-  });
+  const buttons = [
+    [
+      { text: "👁 View Details", callback_data: `VIEW|${billId}` },
+    ],
+    [
+      { text: "✅ Mark Paid", callback_data: `MARK_PAID|${billId}` },
+      { text: "🧾 Add Payment Details", callback_data: `ADD_META|${billId}` },
+    ],
+    [
+      { text: "⏰ Snooze 30m", callback_data: `SNOOZE_30|${billId}` },
+      { text: "🔁 Remind Tomorrow", callback_data: `REMIND_TOMORROW|${billId}` },
+    ],
+    [
+      { text: "❌ Dismiss", callback_data: `DISMISS|${billId}` },
+    ],
+  ];
+
+  if (text) {
+    await notifyTelegram({
+      text,
+      buttons,
+    });
+  }
 }
-}
+
       // --- Update CC state (unchanged from your logic) ---
       const updated = {
         ...existing,
