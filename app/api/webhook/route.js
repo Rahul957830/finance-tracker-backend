@@ -1,3 +1,5 @@
+import { buildTelegramMessage } from "../../../lib/notify/messageBuilder";
+
 import { evaluateNotificationRules } from "../../../lib/notify/rules";
 import { kv } from "@vercel/kv";
 
@@ -95,6 +97,31 @@ export async function POST(req) {
         bill_id: billId,
         decision,
       });
+// --- Notification preview (NO SEND yet) ---
+if (decision?.notify) {
+  const text = buildTelegramMessage({
+    event,
+    cardState: {
+      bill_id: billId,
+      provider: event.provider,
+      statement_month: event.dates?.statement_month,
+      amount_due: event.amount?.value,
+      due_date: event.dates?.due_date,
+      days_left: event.status?.days_left,
+      status: newStatus,
+    },
+    decision,
+  });
+
+  console.log("📨 TELEGRAM_MESSAGE_PREVIEW", {
+    bill_id: billId,
+    priority: decision.priority,
+    reason: decision.reason,
+    text,
+  });
+}
+
+      
 
       // --- Update CC state (unchanged from your logic) ---
       const updated = {
