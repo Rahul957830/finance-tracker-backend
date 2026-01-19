@@ -81,6 +81,16 @@ export async function POST(req) {
         was_status_changed,
       });
 
+      console.log("🔔 RULE_DECISION", {
+  bill_id: billId,
+  provider: event.provider,
+  status: newStatus,
+  days_left: event.status?.days_left,
+  is_new_statement,
+  was_status_changed,
+  decision,
+});
+
       decisions.push({
         bill_id: billId,
         decision,
