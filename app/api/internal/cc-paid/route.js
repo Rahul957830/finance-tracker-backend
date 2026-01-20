@@ -1,7 +1,26 @@
-
 import { notifyTelegram } from "../../../../lib/notify/telegram";
-
 import { kv } from "@vercel/kv";
+
+/* ---------- helpers ---------- */
+
+function formatDatePretty(dateStr) {
+  if (!dateStr) return null;
+  const d = new Date(dateStr);
+  if (isNaN(d)) return null;
+
+  return d.toLocaleDateString("en-GB", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+  });
+}
+
+function formatAmount(amount) {
+  if (typeof amount !== "number") return "₹XXXX";
+  return `₹${amount.toLocaleString("en-IN")}`;
+}
+
+/* ---------- route ---------- */
 
 export async function POST(req) {
   const body = await req.json();
@@ -16,12 +35,10 @@ export async function POST(req) {
 
   const updated = {
     ...existing,
-
     paid: true,
     paid_at: paidAt,
     payment_method: body.payment_method,
     payment_note: body.note,
-
     current_status: "PAID",
     visibility_month: visibilityMonth,
     updated_at: new Date().toISOString(),
@@ -29,12 +46,25 @@ export async function POST(req) {
 
   await kv.set(ccKey, updated);
 
-  // 🔔 SEND PAID NOTIFICATION (SOURCE OF TRUTH)
-await notifyTelegram({
-  text: `✅ ${existing.provider || "Card"} CC ${
-    existing.bill_id || billId
-  } marked PAID`,
-});
+  // 🔔 SEND PAID NOTIFICATION (AUTHORITATIVE)
+  const provider = existing.provider || "Card";
+  const statementMonth = existing.statement_month || "";
+  const cardSuffix = existing.last4 ? ` ${existing.last4}` : "";
+  const paidDatePretty = formatDatePretty(paidAt);
+  const amountPretty = formatAmount(existing.amount_due);
+
+  let message = `✅ ${provider} CC${cardSuffix} ${statementMonth} Successfully Paid!\n\n`;
+  message += `Amount: ${amountPretty}`;
+
+  if (paidDatePretty) {
+    message += `\nPaid on: ${paidDatePretty}`;
+  }
+
+  if (body.payment_method) {
+    message += `\nPayment Method: ${body.payment_method}`;
+  }
+
+  await notifyTelegram({ text: message });
 
   // Update indexes
   await kv.srem("index:cc:open", billId);
