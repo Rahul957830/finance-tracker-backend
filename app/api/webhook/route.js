@@ -22,37 +22,23 @@ export async function POST(req) {
   try {
     const body = await req.json();
 
-    // 1️⃣ Validate payload
     if (!body || !Array.isArray(body.events)) {
-      return new Response(
-        JSON.stringify({ ok: false, error: "`events` array missing or invalid" }),
-        { status: 400 }
-      );
+      return Response.json({ ok: false, error: "events missing" }, { status: 400 });
     }
-
-    if (body.events.length === 0) {
-      return new Response(
-        JSON.stringify({ ok: false, error: "`events` array is empty" }),
-        { status: 400 }
-      );
-    }
-
-    const decisions = [];
 
     for (const event of body.events) {
       if (!event.event_id) continue;
 
-      // Store raw event
+      // store raw event (debugging only)
       await kv.set(`event:${Date.now()}:${event.event_id}`, event);
 
-      // Only credit cards
+      // we notify ONLY for credit cards for now
       if (event.category !== "CREDIT_CARD") continue;
 
       const billId = event.event_id;
       const ccKey = `cc:${billId}`;
       const existing = (await kv.get(ccKey)) || {};
 
-      // --- Derive state ---
       const previousStatus = existing.current_status;
       const newStatus = event.status?.payment_status;
 
@@ -64,7 +50,7 @@ export async function POST(req) {
         event.dates?.statement_month &&
         existing.statement_month !== event.dates.statement_month;
 
-      // --- Rules ---
+      // 🔔 RULE ENGINE
       const decision = evaluateNotificationRules({
         bill_id: billId,
         provider: event.provider,
@@ -76,42 +62,25 @@ export async function POST(req) {
       });
 
       console.log("🔔 RULE_DECISION", {
-        bill_id: billId,
+        billId,
         status: newStatus,
         days_left: event.status?.days_left,
         decision,
       });
 
-      decisions.push({ bill_id: billId, decision });
-
-      // --- SEND TELEGRAM (INITIAL STATE ONLY) ---
       if (decision?.notify) {
         const text = buildTelegramMessage({
           event,
-          cardState: {
-            bill_id: billId,
-            provider: event.provider,
-            statement_month: event.dates?.statement_month,
-            amount_due: event.amount?.value,
-            due_date: event.dates?.due_date,
-            days_left: event.status?.days_left,
-            status: newStatus,
-          },
+          cardState: existing,
           decision,
         });
 
         if (text) {
-          const buttons = [
-            [{ text: "👁 View Details", callback_data: `VIEW|${billId}` }],
-            [{ text: "✅ Mark Paid", callback_data: `MARK_PAID|${billId}` }],
-            [{ text: "❌ Dismiss", callback_data: `DISMISS|${billId}` }],
-          ];
-
-          await notifyTelegram({ text, buttons });
+          await notifyTelegram({ text });
         }
       }
 
-      // --- Update CC state (unchanged) ---
+      // ---- update CC state (unchanged logic) ----
       const updated = {
         ...existing,
         bill_id: billId,
@@ -122,7 +91,6 @@ export async function POST(req) {
         due_date: event.dates?.due_date,
         days_left: event.status?.days_left,
         last_statement_event_id: event.event_id,
-        statement_extracted_at: new Date().toISOString(),
         current_status: newStatus ?? existing.current_status,
         updated_at: new Date().toISOString(),
       };
@@ -134,20 +102,14 @@ export async function POST(req) {
 
       if (updated.current_status === "OVERDUE") {
         await kv.sadd("index:cc:overdue", billId);
-      } else if (updated.current_status === "OPEN") {
+      } else {
         await kv.sadd("index:cc:open", billId);
       }
     }
 
-    return new Response(
-      JSON.stringify({ ok: true, evaluated: decisions.length, decisions }),
-      { status: 200 }
-    );
+    return Response.json({ ok: true });
   } catch (err) {
     console.error("Webhook error", err);
-    return new Response(
-      JSON.stringify({ ok: false, error: err.message }),
-      { status: 500 }
-    );
+    return Response.json({ ok: false, error: err.message }, { status: 500 });
   }
 }
