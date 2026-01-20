@@ -63,24 +63,19 @@ export async function POST(req) {
       ========================= */
 
       const extractorStatus = event.status?.payment_status;
-      const effectiveStatus =
-        existing.current_status ?? extractorStatus;
 
-      /* 🔒 HARD GUARD — PAID
-         Never downgrade a paid bill */
-      if (existing.current_status === "PAID") {
-        console.log(
-          "⏭ Ignoring extractor downgrade — bill already PAID",
-          billId
-        );
-        continue;
-      }
+      // ✅ KV is authoritative once PAID
+      const effectiveStatus =
+        existing.current_status === "PAID"
+          ? "PAID"
+          : extractorStatus;
 
       const previousStatus = existing.current_status;
+
       const was_status_changed =
         previousStatus &&
-        extractorStatus &&
-        previousStatus !== extractorStatus;
+        effectiveStatus &&
+        previousStatus !== effectiveStatus;
 
       const is_new_statement =
         existing.statement_month &&
@@ -94,7 +89,7 @@ export async function POST(req) {
         bill_id: billId,
         provider: event.provider,
         statement_month: event.dates?.statement_month,
-        status: effectiveStatus, // ✅ IMPORTANT FIX
+        status: effectiveStatus,           // ✅ FIX
         days_left: event.status?.days_left,
         is_new_statement,
         was_status_changed,
@@ -124,7 +119,7 @@ export async function POST(req) {
       }
 
       /* =========================
-         Update CC state
+         Update CC state (SAFE)
       ========================= */
       const updated = {
         ...existing,
@@ -136,7 +131,13 @@ export async function POST(req) {
         due_date: event.dates?.due_date,
         days_left: event.status?.days_left,
         last_statement_event_id: event.event_id,
-        current_status: extractorStatus ?? existing.current_status,
+
+        // ❌ Never downgrade PAID
+        current_status:
+          existing.current_status === "PAID"
+            ? "PAID"
+            : extractorStatus ?? existing.current_status,
+
         updated_at: new Date().toISOString(),
       };
 
@@ -150,7 +151,7 @@ export async function POST(req) {
 
       if (updated.current_status === "OVERDUE") {
         await kv.sadd("index:cc:overdue", billId);
-      } else {
+      } else if (updated.current_status === "OPEN") {
         await kv.sadd("index:cc:open", billId);
       }
     }
