@@ -125,6 +125,7 @@ export async function POST(req) {
         ...existing,
         bill_id: billId,
         provider: event.provider,
+        last4: event.account?.identifier ?? existing.last4,
         source_id: event.source_id,
         statement_month: event.dates?.statement_month,
         amount_due: event.amount?.value,
