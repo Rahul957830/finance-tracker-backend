@@ -1,3 +1,4 @@
+import { shouldSendNotification } from "../../../lib/notify/dedupe";
 import { notifyTelegram } from "../../../../lib/notify/telegram";
 import { kv } from "@vercel/kv";
 
@@ -79,7 +80,15 @@ export async function POST(req) {
     message += `\nPayment Method: ${body.payment_method}`;
   }
 
+  const { send } = await shouldSendNotification({
+  source: "cc-paid",
+  id: billId,
+  reason: "CARD_PAID",
+});
+
+if (send) {
   await notifyTelegram({ text: message });
+}
 
   // Update indexes
   await kv.srem("index:cc:open", billId);
