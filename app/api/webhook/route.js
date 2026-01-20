@@ -47,21 +47,6 @@ export async function POST(req) {
       const existing = (await kv.get(ccKey)) || {};
 
       /* =========================
-         🔒 HARD GUARD — PAID
-         Ignore extractor downgrades
-      ========================= */
-      if (
-        event.category === "CREDIT_CARD" &&
-        existing.current_status === "PAID"
-      ) {
-        console.log(
-          "⏭ Ignoring extractor event — bill already PAID",
-          billId
-        );
-        continue;
-      }
-
-      /* =========================
          NON-CARD EVENTS
          (payments, subscriptions)
       ========================= */
@@ -77,11 +62,25 @@ export async function POST(req) {
          CREDIT CARD EVENTS
       ========================= */
 
-      const previousStatus = existing.current_status;
-      const newStatus = event.status?.payment_status;
+      const extractorStatus = event.status?.payment_status;
+      const effectiveStatus =
+        existing.current_status ?? extractorStatus;
 
+      /* 🔒 HARD GUARD — PAID
+         Never downgrade a paid bill */
+      if (existing.current_status === "PAID") {
+        console.log(
+          "⏭ Ignoring extractor downgrade — bill already PAID",
+          billId
+        );
+        continue;
+      }
+
+      const previousStatus = existing.current_status;
       const was_status_changed =
-        previousStatus && newStatus && previousStatus !== newStatus;
+        previousStatus &&
+        extractorStatus &&
+        previousStatus !== extractorStatus;
 
       const is_new_statement =
         existing.statement_month &&
@@ -89,13 +88,13 @@ export async function POST(req) {
         existing.statement_month !== event.dates.statement_month;
 
       /* -------------------------
-         🔔 Rule engine (once)
+         🔔 Rule engine (KV-aware)
       ------------------------- */
       const decision = evaluateNotificationRules({
         bill_id: billId,
         provider: event.provider,
         statement_month: event.dates?.statement_month,
-        status: newStatus,
+        status: effectiveStatus, // ✅ IMPORTANT FIX
         days_left: event.status?.days_left,
         is_new_statement,
         was_status_changed,
@@ -103,8 +102,9 @@ export async function POST(req) {
 
       console.log("🔔 RULE_DECISION", {
         billId,
-        status: newStatus,
-        days_left: event.status?.days_left,
+        kv_status: existing.current_status,
+        extractor_status: extractorStatus,
+        effective_status: effectiveStatus,
         decision,
       });
 
@@ -124,7 +124,7 @@ export async function POST(req) {
       }
 
       /* =========================
-         Update CC state (unchanged)
+         Update CC state
       ========================= */
       const updated = {
         ...existing,
@@ -136,7 +136,7 @@ export async function POST(req) {
         due_date: event.dates?.due_date,
         days_left: event.status?.days_left,
         last_statement_event_id: event.event_id,
-        current_status: newStatus ?? existing.current_status,
+        current_status: extractorStatus ?? existing.current_status,
         updated_at: new Date().toISOString(),
       };
 
