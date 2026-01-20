@@ -1,5 +1,5 @@
 
-import { notifyTelegram } from "../../../lib/notify/telegram";
+import { notifyTelegram } from "../../../../lib/notify/telegram";
 
 import { kv } from "@vercel/kv";
 
