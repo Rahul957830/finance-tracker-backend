@@ -1,11 +1,11 @@
 import { kv } from "@vercel/kv";
 
 
-import { telegramCall } from "../../../../lib/notify/telegram";
+import { telegramCall } from "../../../../../lib/notify/telegram";
 import {
   initialButtons,
   paymentMetaButtons,
-} from "../../../../lib/notify/telegramButtons";
+} from "../../../../../lib/notify/telegramButtons";
 
 export const dynamic = "force-dynamic";
 
