@@ -1,4 +1,4 @@
-import { shouldSendNotification } from "../../../lib/notify/dedupe";
+import { shouldSendNotification } from "../../../../lib/notify/dedupe";
 import { notifyTelegram } from "../../../../lib/notify/telegram";
 import { kv } from "@vercel/kv";
 
