@@ -1,3 +1,4 @@
+import { shouldSendNotification } from "../../../lib/notify/dedupe";
 import { notifyTelegram } from "../../../lib/notify/telegram";
 import { buildTelegramMessage } from "../../../lib/notify/messageBuilder";
 import { evaluateNotificationRules } from "../../../lib/notify/rules";
@@ -52,9 +53,15 @@ export async function POST(req) {
       ========================= */
       if (event.category !== "CREDIT_CARD") {
         const text = buildTelegramMessage({ event });
-        if (text) {
-          await notifyTelegram({ text });
-        }
+      const { send } = await shouldSendNotification({
+  source: "webhook",
+  id: event.event_id,
+  reason: "NON_CARD",
+});
+
+if (send && text) {
+  await notifyTelegram({ text });
+}  
         continue;
       }
 
@@ -107,16 +114,19 @@ export async function POST(req) {
          📩 Notify Telegram
       ------------------------- */
       if (decision?.notify) {
-        const text = buildTelegramMessage({
-          event,
-          cardState: existing,
-          decision,
-        });
+  const { send } = await shouldSendNotification({
+    source: "webhook",
+    id: billId,
+    reason: decision.reason,
+  });
 
-        if (text) {
-          await notifyTelegram({ text });
-        }
-      }
+  if (send) {
+    const text = buildTelegramMessage({ event, cardState: existing, decision });
+    if (text) {
+      await notifyTelegram({ text });
+    }
+  }
+}
 
       /* =========================
          Update CC state (SAFE)
