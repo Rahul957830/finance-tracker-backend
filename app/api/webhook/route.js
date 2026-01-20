@@ -31,20 +31,32 @@ export async function POST(req) {
 
       // store raw event (debugging only)
       await kv.set(`event:${Date.now()}:${event.event_id}`, event);
-
-     if (event.category === "CREDIT_CARD") {
-  // existing card rule evaluation
-  const decision = evaluateNotificationRules(...);
+      
+if (event.category === "CREDIT_CARD") {
+  const decision = evaluateNotificationRules({
+    bill_id: event.event_id,
+    provider: event.provider,
+    statement_month: event.dates?.statement_month,
+    status: event.status?.payment_status,
+    days_left: event.status?.days_left,
+    is_new_statement: false,
+    was_status_changed: false,
+  });
 
   if (decision?.notify) {
     const text = buildTelegramMessage({ event, decision });
-    if (text) await notifyTelegram({ text });
+    if (text) {
+      await notifyTelegram({ text });
+    }
   }
 } else {
-  // 🔹 NON-CARD: always notify once
+  // ✅ NON-CARD: always notify once
   const text = buildTelegramMessage({ event });
-  if (text) await notifyTelegram({ text });
+  if (text) {
+    await notifyTelegram({ text });
+  }
 }
+   
       const billId = event.event_id;
       const ccKey = `cc:${billId}`;
       const existing = (await kv.get(ccKey)) || {};
