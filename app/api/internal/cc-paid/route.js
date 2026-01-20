@@ -53,7 +53,7 @@ export async function POST(req) {
   const paidDatePretty = formatDatePretty(paidAt);
   const amountPretty = formatAmount(existing.amount_due);
 
-  let message = `✅ ${provider} CC${cardSuffix} ${statementMonth} Successfully Paid!\n\n`;
+  let message = `✅ ${provider} CC${cardSuffix} ${statementMonth} Paid Successfully!\n\n`;
   message += `Amount: ${amountPretty}`;
 
   if (paidDatePretty) {
