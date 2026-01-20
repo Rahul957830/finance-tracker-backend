@@ -32,9 +32,19 @@ export async function POST(req) {
       // store raw event (debugging only)
       await kv.set(`event:${Date.now()}:${event.event_id}`, event);
 
-      // we notify ONLY for credit cards for now
-      if (event.category !== "CREDIT_CARD") continue;
+     if (event.category === "CREDIT_CARD") {
+  // existing card rule evaluation
+  const decision = evaluateNotificationRules(...);
 
+  if (decision?.notify) {
+    const text = buildTelegramMessage({ event, decision });
+    if (text) await notifyTelegram({ text });
+  }
+} else {
+  // 🔹 NON-CARD: always notify once
+  const text = buildTelegramMessage({ event });
+  if (text) await notifyTelegram({ text });
+}
       const billId = event.event_id;
       const ccKey = `cc:${billId}`;
       const existing = (await kv.get(ccKey)) || {};
