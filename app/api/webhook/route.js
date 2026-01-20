@@ -61,6 +61,12 @@ if (event.category === "CREDIT_CARD") {
       const ccKey = `cc:${billId}`;
       const existing = (await kv.get(ccKey)) || {};
 
+// If bill already paid internally, ignore extractor downgrade
+if (existing.current_status === "PAID") {
+  console.log("⏭ Ignoring extractor event — bill already PAID", billId);
+  continue;
+}
+
       const previousStatus = existing.current_status;
       const newStatus = event.status?.payment_status;
 
