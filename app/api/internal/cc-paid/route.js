@@ -1,3 +1,6 @@
+
+import { notifyTelegram } from "../../../lib/notify/telegram";
+
 import { kv } from "@vercel/kv";
 
 export async function POST(req) {
@@ -25,6 +28,13 @@ export async function POST(req) {
   };
 
   await kv.set(ccKey, updated);
+
+  // 🔔 SEND PAID NOTIFICATION (SOURCE OF TRUTH)
+await notifyTelegram({
+  text: `✅ ${existing.provider || "Card"} CC ${
+    existing.bill_id || billId
+  } marked PAID`,
+});
 
   // Update indexes
   await kv.srem("index:cc:open", billId);
