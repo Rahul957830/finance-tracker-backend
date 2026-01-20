@@ -3,6 +3,21 @@ import { kv } from "@vercel/kv";
 
 /* ---------- helpers ---------- */
 
+function formatStatementMonth(statementMonth) {
+  if (!statementMonth) return "";
+
+  // expected formats: 202512 or 2025-12
+  const clean = statementMonth.replace("-", "");
+  const year = clean.slice(0, 4);
+  const month = clean.slice(4, 6);
+
+  const date = new Date(`${year}-${month}-01`);
+  if (isNaN(date)) return statementMonth;
+
+  const monthName = date.toLocaleString("en-GB", { month: "short" });
+  return `${monthName}'${year.slice(2)}`;
+}
+
 function formatDatePretty(dateStr) {
   if (!dateStr) return null;
   const d = new Date(dateStr);
@@ -48,12 +63,12 @@ export async function POST(req) {
 
   // 🔔 SEND PAID NOTIFICATION (AUTHORITATIVE)
   const provider = existing.provider || "Card";
-  const statementMonth = existing.statement_month || "";
+  const statementMonthPretty = formatStatementMonth(existing.statement_month);
   const cardSuffix = existing.last4 ? ` ${existing.last4}` : "";
   const paidDatePretty = formatDatePretty(paidAt);
   const amountPretty = formatAmount(existing.amount_due);
 
-  let message = `✅ ${provider} CC${cardSuffix} ${statementMonth} paid successfully !\n\n`;
+  let message = `✅ ${provider} CC${cardSuffix} ${statementMonthPretty} Successfully Paid!\n\n`;
   message += `Amount: ${amountPretty}`;
 
   if (paidDatePretty) {
