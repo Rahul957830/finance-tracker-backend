@@ -1,7 +1,5 @@
-
 import { notifyTelegram } from "../../../lib/notify/telegram";
 import { buildTelegramMessage } from "../../../lib/notify/messageBuilder";
-
 import { evaluateNotificationRules } from "../../../lib/notify/rules";
 import { kv } from "@vercel/kv";
 
@@ -27,20 +25,14 @@ export async function POST(req) {
     // 1️⃣ Validate payload
     if (!body || !Array.isArray(body.events)) {
       return new Response(
-        JSON.stringify({
-          ok: false,
-          error: "`events` array missing or invalid",
-        }),
+        JSON.stringify({ ok: false, error: "`events` array missing or invalid" }),
         { status: 400 }
       );
     }
 
     if (body.events.length === 0) {
       return new Response(
-        JSON.stringify({
-          ok: false,
-          error: "`events` array is empty",
-        }),
+        JSON.stringify({ ok: false, error: "`events` array is empty" }),
         { status: 400 }
       );
     }
@@ -50,16 +42,14 @@ export async function POST(req) {
     for (const event of body.events) {
       if (!event.event_id) continue;
 
-      // Store raw event (unchanged)
-      const rawKey = `event:${Date.now()}:${event.event_id}`;
-      await kv.set(rawKey, event);
+      // Store raw event
+      await kv.set(`event:${Date.now()}:${event.event_id}`, event);
 
-      // Only evaluate rules for credit cards
+      // Only credit cards
       if (event.category !== "CREDIT_CARD") continue;
 
       const billId = event.event_id;
       const ccKey = `cc:${billId}`;
-
       const existing = (await kv.get(ccKey)) || {};
 
       // --- Derive state ---
@@ -74,7 +64,7 @@ export async function POST(req) {
         event.dates?.statement_month &&
         existing.statement_month !== event.dates.statement_month;
 
-      // --- Feed rule engine ---
+      // --- Rules ---
       const decision = evaluateNotificationRules({
         bill_id: billId,
         provider: event.provider,
@@ -86,61 +76,42 @@ export async function POST(req) {
       });
 
       console.log("🔔 RULE_DECISION", {
-  bill_id: billId,
-  provider: event.provider,
-  status: newStatus,
-  days_left: event.status?.days_left,
-  is_new_statement,
-  was_status_changed,
-  decision,
-});
-
-      decisions.push({
         bill_id: billId,
+        status: newStatus,
+        days_left: event.status?.days_left,
         decision,
       });
-// --- Notification preview (NO SEND yet) ---
-if (decision?.notify) {
-  const text = buildTelegramMessage({
-    event,
-    cardState: {
-      bill_id: billId,
-      provider: event.provider,
-      statement_month: event.dates?.statement_month,
-      amount_due: event.amount?.value,
-      due_date: event.dates?.due_date,
-      days_left: event.status?.days_left,
-      status: newStatus,
-    },
-    decision,
-  });
 
-  const buttons = [
-    [
-      { text: "👁 View Details", callback_data: `VIEW|${billId}` },
-    ],
-    [
-      { text: "✅ Mark Paid", callback_data: `MARK_PAID|${billId}` },
-      { text: "🧾 Add Payment Details", callback_data: `ADD_META|${billId}` },
-    ],
-    [
-      { text: "⏰ Snooze 30m", callback_data: `SNOOZE_30|${billId}` },
-      { text: "🔁 Remind Tomorrow", callback_data: `REMIND_TOMORROW|${billId}` },
-    ],
-    [
-      { text: "❌ Dismiss", callback_data: `DISMISS|${billId}` },
-    ],
-  ];
+      decisions.push({ bill_id: billId, decision });
 
-  if (text) {
-    await notifyTelegram({
-      text,
-      buttons,
-    });
-  }
-}
+      // --- SEND TELEGRAM (INITIAL STATE ONLY) ---
+      if (decision?.notify) {
+        const text = buildTelegramMessage({
+          event,
+          cardState: {
+            bill_id: billId,
+            provider: event.provider,
+            statement_month: event.dates?.statement_month,
+            amount_due: event.amount?.value,
+            due_date: event.dates?.due_date,
+            days_left: event.status?.days_left,
+            status: newStatus,
+          },
+          decision,
+        });
 
-      // --- Update CC state (unchanged from your logic) ---
+        if (text) {
+          const buttons = [
+            [{ text: "👁 View Details", callback_data: `VIEW|${billId}` }],
+            [{ text: "✅ Mark Paid", callback_data: `MARK_PAID|${billId}` }],
+            [{ text: "❌ Dismiss", callback_data: `DISMISS|${billId}` }],
+          ];
+
+          await notifyTelegram({ text, buttons });
+        }
+      }
+
+      // --- Update CC state (unchanged) ---
       const updated = {
         ...existing,
         bill_id: billId,
@@ -158,7 +129,6 @@ if (decision?.notify) {
 
       await kv.set(ccKey, updated);
 
-      // Index updates (idempotent)
       await kv.srem("index:cc:open", billId);
       await kv.srem("index:cc:overdue", billId);
 
@@ -170,19 +140,13 @@ if (decision?.notify) {
     }
 
     return new Response(
-      JSON.stringify({
-        ok: true,
-        evaluated: decisions.length,
-        decisions,
-      }),
+      JSON.stringify({ ok: true, evaluated: decisions.length, decisions }),
       { status: 200 }
     );
   } catch (err) {
+    console.error("Webhook error", err);
     return new Response(
-      JSON.stringify({
-        ok: false,
-        error: err.message,
-      }),
+      JSON.stringify({ ok: false, error: err.message }),
       { status: 500 }
     );
   }
