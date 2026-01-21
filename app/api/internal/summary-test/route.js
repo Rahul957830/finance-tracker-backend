@@ -2,46 +2,46 @@ import { buildDailySummary } from "../../../../lib/notify/summaryBuilder";
 
 export async function GET() {
   const text = buildDailySummary({
-    dateLabel: "15 Jan 2025",
+    datePretty: "15 Jan 2025",
 
     cards: [
       {
-        display_name: "ICICI CC 7003 Dec'25",
-        amount: "₹1,000",
+        label: "ICICI CC 7003 Dec'25",
         status: "DUE",
-        date: "15-Jan-25",
+        amount: 1000,
+        dueDate: "2025-01-15",
       },
       {
-        display_name: "ICICI CC 7000 Dec'25",
-        amount: "₹1,000",
+        label: "ICICI CC 7000 Dec'25",
         status: "OVERDUE",
-        date: "15-Jan-25",
+        amount: 1000,
+        dueDate: "2025-01-15",
       },
       {
-        display_name: "ICICI CC 5006 Dec'25",
-        amount: "₹1,000",
+        label: "ICICI CC 5006 Dec'25",
         status: "PAID",
-        date: "15-Jan-25",
+        amount: 1000,
+        paidDate: "2025-01-15",
       },
     ],
 
     payments: [
       {
-        name: "YouTube Premium",
+        displayName: "YouTube Premium",
         provider: "GooglePlay",
-        amount: "₹1,000",
+        amount: 1000,
       },
       {
-        name: "TPDDL Electricity",
+        displayName: "TPDDL Electricity",
         provider: "Paytm",
-        amount: "₹1,000",
+        amount: 1000,
       },
     ],
 
-    totalOutflow: "₹2,000",
+    totalOutflow: 2000,
   });
 
   return new Response(text, {
-    headers: { "Content-Type": "text/plain" },
+    headers: { "Content-Type": "text/plain; charset=utf-8" },
   });
 }
