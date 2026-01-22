@@ -4,7 +4,7 @@ import { buildDailySummary } from "../../../../lib/notify/summaryBuilder";
 
 export async function GET() {
   /* =========================
-     DATE
+     DATE (display only)
   ========================= */
   const today = new Date();
   const datePretty = today.toLocaleDateString("en-IN", {
@@ -12,8 +12,6 @@ export async function GET() {
     month: "short",
     year: "numeric",
   });
-
-  const yyyyMMdd = today.toISOString().slice(0, 10);
 
   /* =========================
      CARDS (from KV)
@@ -32,8 +30,8 @@ export async function GET() {
 
     cards.push({
       label,
-      status: cc.current_status,
-      amount: cc.amount_due,
+      status: cc.current_status,        // DUE | OVERDUE | PAID
+      amount: Number(cc.amount_due || 0),
       dueDate: cc.due_date,
       paidDate: cc.paid_at,
     });
@@ -51,13 +49,10 @@ export async function GET() {
     const event = await kv.get(key);
     if (!event) continue;
 
-    // only today
-    if (!key.includes(yyyyMMdd)) continue;
-
-    // skip cards
+    // Skip credit cards
     if (event.category === "CREDIT_CARD") continue;
 
-    const amount = Number(event.amount?.value || 0);
+    const amount = Number(event.amount?.value);
     if (!amount) continue;
 
     payments.push({
@@ -68,10 +63,14 @@ export async function GET() {
         "Payment",
       provider: event.provider || "—",
       amount,
+      ts: event.created_at || event.timestamp || 0,
     });
 
     totalOutflow += amount;
   }
+
+  // 🔽 Sort payments by time (oldest → newest)
+  payments.sort((a, b) => a.ts - b.ts);
 
   /* =========================
      BUILD SUMMARY
