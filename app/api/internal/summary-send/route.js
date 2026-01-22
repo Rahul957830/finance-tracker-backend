@@ -1,6 +1,7 @@
 import { kv } from "@vercel/kv";
 import { notifyTelegram } from "../../../../lib/notify/telegram";
 import { buildDailySummary } from "../../../../lib/notify/summaryBuilder";
+import { shouldSendNotification } from "../../../../lib/notify/dedupe";
 
 export const dynamic = "force-dynamic";
 
@@ -122,12 +123,41 @@ payments.sort((a, b) => {
     payments,
     totalOutflow,
   });
+  
+/* =========================
+   DEDUPLICATION (DAILY)
+========================= */
+
+const dedupe = await shouldSendNotification({
+  source: "DAILY_SUMMARY",
+  id: "GLOBAL",
+  reason: "AUTO",
+});
+
+if (!dedupe.send) {
+  return new Response(
+    JSON.stringify({
+      ok: false,
+      skipped: true,
+      dedupeKey: dedupe.dedupeKey,
+      date: datePretty,
+    }),
+    { status: 200 }
+  );
+}
+
 
   /* =========================
      SEND TO TELEGRAM
   ========================= */
   await notifyTelegram({ text });
-
+console.log("📊 DAILY_SUMMARY_SENT", {
+  date: datePretty,
+  cards: cards.length,
+  payments: payments.length,
+  totalOutflow,
+});
+  
   /* =========================
      RESPONSE
   ========================= */
