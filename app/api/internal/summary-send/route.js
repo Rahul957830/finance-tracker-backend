@@ -2,6 +2,8 @@ import { kv } from "@vercel/kv";
 import { notifyTelegram } from "../../../../lib/notify/telegram";
 import { buildDailySummary } from "../../../../lib/notify/summaryBuilder";
 
+export const dynamic = "force-dynamic";
+
 export async function GET() {
   /* =========================
      DATE (display only)
@@ -88,15 +90,20 @@ export async function GET() {
   await notifyTelegram({ text });
 
   return new Response(
-    JSON.stringify({
-      ok: true,
-      cards: cards.length,
-      payments: payments.length,
-      totalOutflow,
-    }),
-    { status: 200 }
-  );
-}
+  JSON.stringify({
+    ok: true,
+    cards: cards.length,
+    payments: payments.length,
+    totalOutflow,
+  }),
+  {
+    status: 200,
+    headers: {
+      "Content-Type": "application/json",
+      "Cache-Control": "no-store, no-cache, must-revalidate",
+    },
+  }
+);
 
 /* =========================
    Helpers
