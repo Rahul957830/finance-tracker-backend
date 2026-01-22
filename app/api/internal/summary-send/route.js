@@ -81,15 +81,22 @@ export async function GET() {
     if (!amount) continue;
 
     payments.push({
-      displayName:
-        event.notification?.display_name ||
-        event.display_name ||
-        event.provider ||
-        "Payment",
-      provider: event.provider || "—",
-      amount,
-      ts: event.created_at || event.timestamp || 0,
-    });
+  identifier:
+    event.account?.identifier ||        // ✅ TPDDL / Delhi Jal Board
+    event.account?.display_name ||
+    event.notification?.display_name ||
+    event.display_name ||
+    event.provider,
+
+  amount,
+
+  paidDate:
+    event.dates?.paid_at ||             // ✅ actual payment date
+    event.created_at ||
+    event.timestamp,
+
+  ts: event.created_at || event.timestamp || 0,
+});
 
     totalOutflow += amount;
   }
