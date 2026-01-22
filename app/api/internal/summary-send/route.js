@@ -107,6 +107,14 @@ export async function GET() {
   /* =========================
      BUILD SUMMARY
   ========================= */
+// Newest → Oldest
+payments.sort((a, b) => {
+  const da = new Date(a.paidDate || a.ts).getTime();
+  const db = new Date(b.paidDate || b.ts).getTime();
+  return db - da;
+});
+
+
   const text = buildDailySummary({
     datePretty,
     cards,
