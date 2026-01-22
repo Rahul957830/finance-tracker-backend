@@ -26,13 +26,13 @@ export async function GET() {
     const cc = await kv.get(key);
     if (!cc) continue;
 
-    const label = `${cc.provider} CC ${cc.last4 || ""} ${fmtMonth(
-      cc.statement_month
-    )}`;
+    const label = `${cc.provider || "Card"} CC ${
+      cc.last4 || ""
+    } ${fmtMonth(cc.statement_month)}`.trim();
 
     cards.push({
       label,
-      status: cc.current_status,        // DUE | OVERDUE | PAID
+      status: cc.current_status, // DUE | OVERDUE | PAID
       amount: Number(cc.amount_due || 0),
       dueDate: cc.due_date,
       paidDate: cc.paid_at,
@@ -71,7 +71,7 @@ export async function GET() {
     totalOutflow += amount;
   }
 
-  // 🔽 Sort payments by time (oldest → newest)
+  // Oldest → newest
   payments.sort((a, b) => a.ts - b.ts);
 
   /* =========================
@@ -89,21 +89,25 @@ export async function GET() {
   ========================= */
   await notifyTelegram({ text });
 
+  /* =========================
+     RESPONSE
+  ========================= */
   return new Response(
-  JSON.stringify({
-    ok: true,
-    cards: cards.length,
-    payments: payments.length,
-    totalOutflow,
-  }),
-  {
-    status: 200,
-    headers: {
-      "Content-Type": "application/json",
-      "Cache-Control": "no-store, no-cache, must-revalidate",
-    },
-  }
-);
+    JSON.stringify({
+      ok: true,
+      cards: cards.length,
+      payments: payments.length,
+      totalOutflow,
+    }),
+    {
+      status: 200,
+      headers: {
+        "Content-Type": "application/json",
+        "Cache-Control": "no-store, no-cache, must-revalidate",
+      },
+    }
+  );
+}
 
 /* =========================
    Helpers
