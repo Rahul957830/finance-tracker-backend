@@ -18,7 +18,9 @@ export async function GET() {
   /* =========================
      CARDS (from KV)
   ========================= */
-  const cards = [];
+  const overdue = [];
+  const due = [];
+  const paid = [];
 
   const ccKeys = await kv.keys("cc:*");
 
@@ -30,14 +32,36 @@ export async function GET() {
       cc.last4 || ""
     } ${fmtMonth(cc.statement_month)}`.trim();
 
-    cards.push({
+    const card = {
       label,
       status: cc.current_status, // DUE | OVERDUE | PAID
       amount: Number(cc.amount_due || 0),
       dueDate: cc.due_date,
       paidDate: cc.paid_at,
-    });
+      sortKey:
+        cc.statement_month ||
+        cc.paid_at ||
+        cc.due_date ||
+        "",
+    };
+
+    if (cc.current_status === "OVERDUE") overdue.push(card);
+    else if (cc.current_status === "DUE") due.push(card);
+    else if (cc.current_status === "PAID") paid.push(card);
   }
+
+  // 🔽 New → Old
+  const sortDesc = (a, b) => (a.sortKey < b.sortKey ? 1 : -1);
+
+  overdue.sort(sortDesc);
+  due.sort(sortDesc);
+  paid.sort(sortDesc);
+
+  const cards = [
+    ...overdue,
+    ...due,
+    ...paid,
+  ];
 
   /* =========================
      PAYMENTS (Non-card)
@@ -51,7 +75,6 @@ export async function GET() {
     const event = await kv.get(key);
     if (!event) continue;
 
-    // Skip credit cards
     if (event.category === "CREDIT_CARD") continue;
 
     const amount = Number(event.amount?.value);
@@ -71,7 +94,7 @@ export async function GET() {
     totalOutflow += amount;
   }
 
-  // Oldest → newest
+  // Old → New (keeps daily flow readable)
   payments.sort((a, b) => a.ts - b.ts);
 
   /* =========================
