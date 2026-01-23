@@ -41,6 +41,8 @@ export async function GET() {
     totalOutflow: 2000,
   });
 
+// force redeploy – summary builder updated
+  
   return new Response(text, {
     headers: { "Content-Type": "text/plain; charset=utf-8" },
   });
