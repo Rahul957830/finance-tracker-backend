@@ -2,7 +2,7 @@
   "crons": [
     {
       "path": "/api/internal/summary-send",
-      "schedule": "*/1 * * * *"
+      "schedule": "* * * * *"
     }
   ]
 }
