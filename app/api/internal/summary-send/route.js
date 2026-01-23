@@ -3,9 +3,33 @@ import { notifyTelegram } from "../../../../lib/notify/telegram";
 import { buildDailySummary } from "../../../../lib/notify/summaryBuilder";
 import { shouldSendNotification } from "../../../../lib/notify/dedupe";
 
+export const DEPLOY_ID = "DEPLOY_2026_01_23_2230";
+
+
 export const dynamic = "force-dynamic";
 
 export async function GET() {
+  console.log("🔥 SUMMARY-SEND HIT", {
+    deploy: DEPLOY_ID,
+    time: new Date().toISOString(),
+  });
+
+ // ✅ DEDUPLICATION GUARD (ADD HERE)
+  const dedupe = await shouldSendNotification({
+    source: "cron",
+    id: "daily-summary",
+    reason: "daily",
+  });
+
+  if (!dedupe.send) {
+    console.log("⛔ DAILY SUMMARY SKIPPED (DEDUPED)", dedupe);
+    return new Response(
+      JSON.stringify({ ok: true, skipped: true }),
+      { status: 200 }
+    );
+  }
+
+  
   /* =========================
      DATE (display only)
   ========================= */
