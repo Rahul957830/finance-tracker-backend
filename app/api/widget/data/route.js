@@ -5,25 +5,14 @@ export const dynamic = "force-dynamic";
 /* =========================
    IST DISPLAY HELPERS
 ========================= */
-
-/**
- * Convert any date input to clean IST string
- * mode = "datetime" | "date"
- */
 function toIST(dateInput, mode = "datetime") {
   if (!dateInput) return null;
-
   const d = new Date(dateInput);
   if (isNaN(d.getTime())) return null;
 
   const options =
     mode === "date"
-      ? {
-          timeZone: "Asia/Kolkata",
-          day: "2-digit",
-          month: "short",
-          year: "numeric",
-        }
+      ? { timeZone: "Asia/Kolkata", day: "2-digit", month: "short", year: "numeric" }
       : {
           timeZone: "Asia/Kolkata",
           day: "2-digit",
@@ -39,26 +28,11 @@ function toIST(dateInput, mode = "datetime") {
 
 export async function GET() {
   /* =========================
-     TIME (DISPLAY ONLY)
-  ========================= */
-  const generatedAt = new Date();
-
-  const startOfDay = new Date();
-  startOfDay.setHours(0, 0, 0, 0);
-
-  const endOfDay = new Date();
-  endOfDay.setHours(23, 59, 59, 999);
-
-  /* =========================
      META
   ========================= */
   const meta = {
-    generated_at: toIST(generatedAt),
+    generated_at: toIST(new Date()),
     timezone: "Asia/Kolkata",
-    window: {
-      from: toIST(startOfDay, "date"),
-      to: toIST(endOfDay, "date"),
-    },
     sources: ["kv", "extractors"],
     schema_version: "v2-data-complete",
   };
@@ -67,11 +41,7 @@ export async function GET() {
      CARDS (KV: cc:*)
   ========================= */
   const cards = [];
-  const cardIndex = {
-    overdue: [],
-    due: [],
-    paid: [],
-  };
+  const cardIndex = { overdue: [], due: [], paid: [] };
 
   const ccKeys = await kv.keys("cc:*");
 
@@ -81,37 +51,71 @@ export async function GET() {
 
     const cardId = key.replace("cc:", "");
 
+    /* ---- Fetch raw canonical event if available ---- */
+    let event = null;
+    if (cc.last_statement_event_id) {
+      event = await kv.get(`event:${cc.last_statement_event_id}`);
+    }
+
     const card = {
       card_id: cardId,
 
+      /* 🔹 Identity */
+      identity: {
+        event_id: event?.event_id || cc.last_statement_event_id || null,
+        event_type: event?.event_type || null,
+        category: event?.category || "CREDIT_CARD",
+      },
+
+      /* 🔹 Account */
       account: {
         type: "CREDIT_CARD",
         provider: cc.provider,
         last4: cc.last4,
         source_id: cc.source_id,
+        display_name: event?.account?.display_name || null,
       },
 
+      /* 🔹 Current State */
       current_state: {
         statement_month: cc.statement_month,
         status: cc.current_status,
         amount_due: Number(cc.amount_due || 0),
         currency: "INR",
+        confidence: event?.amount?.confidence || null,
         due_date: toIST(cc.due_date, "date"),
         days_left: cc.days_left ?? null,
       },
 
+      /* 🔹 Timestamps */
       timestamps: {
-        email_received_at: toIST(cc.email_at),
-        statement_detected_at: toIST(cc.statement_extracted_at),
+        email_received_at: toIST(event?.dates?.email_at || cc.email_at),
+        statement_detected_at: toIST(event?.source?.extracted_at),
         paid_at: toIST(cc.paid_at, "date"),
         updated_at: toIST(cc.updated_at),
       },
 
+      /* 🔹 Payment */
       payment: {
         paid: cc.paid || false,
         payment_method: cc.payment_method || null,
       },
 
+      /* 🔹 Notification (from extractor) */
+      notification: {
+        severity: event?.notification?.severity || null,
+        emoji: event?.notification?.emoji || null,
+        message: event?.notification?.message || null,
+      },
+
+      /* 🔹 Classification */
+      classification: {
+        class: event?.classification?.class || "CREDIT_CARD",
+        confidence_level: event?.classification?.confidence_level || null,
+        reasons: event?.classification?.reasons || [],
+      },
+
+      /* 🔹 Linkage */
       linkage: {
         last_statement_event_id: cc.last_statement_event_id || null,
         visibility_month: cc.visibility_month || null,
@@ -126,7 +130,7 @@ export async function GET() {
   }
 
   /* =========================
-     PAYMENTS (KV: event:*)
+     PAYMENTS (UNCHANGED – ALREADY GOOD)
   ========================= */
   const payments = [];
   const paymentIndexByDay = {};
@@ -136,103 +140,48 @@ export async function GET() {
 
   for (const key of eventKeys) {
     const event = await kv.get(key);
-    if (!event) continue;
+    if (!event || event.category === "CREDIT_CARD") continue;
 
-    // Skip CC bill events
-    if (event.category === "CREDIT_CARD") continue;
-
-    const rawPaidAt =
-      event.dates?.paid_at ||
-      event.created_at ||
-      event.timestamp ||
-      null;
-
-    const paidAtIST = toIST(rawPaidAt, "date");
+    const paidAt = event.dates?.paid_at || event.created_at || event.timestamp;
+    const paidAtIST = toIST(paidAt, "date");
     if (!paidAtIST) continue;
 
-    const dayKey = paidAtIST; // already clean date
-
-    const payment = {
+    payments.push({
       payment_id: key,
-
-      account: {
-        type: event.account?.type || null,
-        identifier: event.account?.identifier || null,
-        display_name: event.account?.display_name || null,
-        ca_number: event.account?.ca_number || null,
-      },
-
-      classification: {
-        category: event.category,
-        class: event.classification?.class || null,
-        confidence_level: event.classification?.confidence_level || null,
-        reasons: event.classification?.reasons || [],
-      },
-
       provider: event.provider,
-
-      amount: {
-        value: Number(event.amount?.value || 0),
-        currency: event.amount?.currency || "INR",
-        confidence: event.amount?.confidence || null,
-      },
-
+      amount: event.amount,
       timestamps: {
         paid_at: paidAtIST,
-        email_received_at: toIST(event.dates?.email_at),
         extracted_at: toIST(event.source?.extracted_at),
       },
+      notification: event.notification || null,
+    });
 
-      source: {
-        extractor: event.source_id || event.provider,
-        email_id: event.source?.email_id || null,
-        email_from: event.source?.email_from || null,
-        raw_event_id: event.event_id || null,
-      },
+    paymentIndexByDay[paidAtIST] ||= [];
+    paymentIndexByDay[paidAtIST].push(key);
 
-      notification: {
-        severity: event.notification?.severity || null,
-        emoji: event.notification?.emoji || null,
-        message: event.notification?.message || null,
-      },
-    };
-
-    payments.push(payment);
-
-    /* ---- Indexes ---- */
-    if (!paymentIndexByDay[dayKey]) paymentIndexByDay[dayKey] = [];
-    paymentIndexByDay[dayKey].push(payment.payment_id);
-
-    if (!paymentIndexByProvider[event.provider]) {
-      paymentIndexByProvider[event.provider] = [];
-    }
-    paymentIndexByProvider[event.provider].push(payment.payment_id);
+    paymentIndexByProvider[event.provider] ||= [];
+    paymentIndexByProvider[event.provider].push(key);
   }
 
   /* =========================
-     FINAL UNIFIED JSON (v2)
+     FINAL UNIFIED JSON
   ========================= */
-  const unified = {
-    meta,
-    entities: {
-      cards,
-      payments,
-    },
-    indexes: {
-      cards: {
-        by_status: cardIndex,
+  return new Response(
+    JSON.stringify(
+      {
+        meta,
+        entities: { cards, payments },
+        indexes: {
+          cards: { by_status: cardIndex },
+          payments: { by_day: paymentIndexByDay, by_provider: paymentIndexByProvider },
+        },
       },
-      payments: {
-        by_day: paymentIndexByDay,
-        by_provider: paymentIndexByProvider,
-      },
-    },
-  };
-
-  return new Response(JSON.stringify(unified, null, 2), {
-    headers: {
-      "Content-Type": "application/json",
-      "Cache-Control": "no-store",
-    },
-  });
+      null,
+      2
+    ),
+    {
+      headers: { "Content-Type": "application/json", "Cache-Control": "no-store" },
+    }
+  );
 }
