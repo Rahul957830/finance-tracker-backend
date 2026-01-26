@@ -52,10 +52,18 @@ export async function GET() {
     const cardId = key.replace("cc:", "");
 
     /* ---- Fetch raw canonical event if available ---- */
-    let event = null;
-    if (cc.last_statement_event_id) {
-      event = await kv.get(`event:${cc.last_statement_event_id}`);
-    }
+let event = null;
+
+if (cc.last_statement_event_id) {
+  const eventKeys = await kv.keys(
+    `event:*:${cc.last_statement_event_id}`
+  );
+
+  if (eventKeys.length > 0) {
+    const latestEventKey = eventKeys.sort().pop();
+    event = await kv.get(latestEventKey);
+  }
+}
 
     const card = {
       card_id: cardId,
