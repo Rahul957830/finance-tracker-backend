@@ -100,7 +100,7 @@ export async function GET() {
 
          source: {
         email_id: cc.email_id,
-        email_from: cc.email_from,
+         email_from: normalizeEmailFrom(cc.email_from),
       },
        
       payment: {
