@@ -148,6 +148,10 @@ if (send && text) {
         amount_due: event.amount?.value,
         due_date: event.dates?.due_date,
         days_left: event.status?.days_left,
+      email_at: event.dates?.email_at || existing.email_at || null,
+      email_id: event.source?.email_id || existing.email_id || null,
+      email_from: event.source?.email_from || existing.email_from || null,
+         
         last_statement_event_id: event.event_id,
 
         // ❌ Never downgrade PAID
