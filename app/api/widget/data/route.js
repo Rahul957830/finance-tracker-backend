@@ -2,6 +2,25 @@ import { kv } from "@vercel/kv";
 
 export const dynamic = "force-dynamic";
 
+/* =========================
+   IST TIME HELPERS
+========================= */
+const IST_OFFSET_MINUTES = 330;
+
+/**
+ * Convert any date input to IST ISO string
+ * Safe for: null | undefined | string | Date
+ */
+function toIST(dateInput) {
+  if (!dateInput) return null;
+
+  const d = new Date(dateInput);
+  if (isNaN(d.getTime())) return null;
+
+  const istTime = new Date(d.getTime() + IST_OFFSET_MINUTES * 60 * 1000);
+  return istTime.toISOString().replace("Z", "+05:30");
+}
+
 export async function GET() {
   /* =========================
      TIME (SAFE)
@@ -18,11 +37,11 @@ export async function GET() {
      META
   ========================= */
   const meta = {
-    generated_at: generatedAt.toISOString(),
+    generated_at: toIST(generatedAt),
     timezone: "Asia/Kolkata",
     window: {
-      from: startOfDay.toISOString(),
-      to: endOfDay.toISOString(),
+      from: toIST(startOfDay),
+      to: toIST(endOfDay),
     },
     sources: ["kv", "extractors"],
     schema_version: "v2-data-complete",
@@ -61,15 +80,15 @@ export async function GET() {
         status: cc.current_status,
         amount_due: Number(cc.amount_due || 0),
         currency: "INR",
-        due_date: cc.due_date,
+        due_date: toIST(cc.due_date),
         days_left: cc.days_left ?? null,
       },
 
       timestamps: {
-        email_received_at: cc.email_at || null,
-        statement_detected_at: cc.statement_extracted_at || null,
-        paid_at: cc.paid_at || null,
-        updated_at: cc.updated_at,
+        email_received_at: toIST(cc.email_at),
+        statement_detected_at: toIST(cc.statement_extracted_at),
+        paid_at: toIST(cc.paid_at),
+        updated_at: toIST(cc.updated_at),
       },
 
       payment: {
@@ -106,15 +125,16 @@ export async function GET() {
     // Skip CC bill events (already represented by cards)
     if (event.category === "CREDIT_CARD") continue;
 
-    const paidAt =
+    const rawPaidAt =
       event.dates?.paid_at ||
       event.created_at ||
       event.timestamp ||
       null;
 
-    if (!paidAt) continue;
+    const paidAtIST = toIST(rawPaidAt);
+    if (!paidAtIST) continue;
 
-    const dayKey = paidAt.slice(0, 10);
+    const dayKey = paidAtIST.slice(0, 10); // YYYY-MM-DD in IST
 
     const payment = {
       payment_id: key,
@@ -142,9 +162,9 @@ export async function GET() {
       },
 
       timestamps: {
-        paid_at: paidAt,
-        email_received_at: event.dates?.email_at || null,
-        extracted_at: event.source?.extracted_at || null,
+        paid_at: paidAtIST,
+        email_received_at: toIST(event.dates?.email_at),
+        extracted_at: toIST(event.source?.extracted_at),
       },
 
       source: {
