@@ -93,6 +93,7 @@ export async function GET() {
 
       timestamps: {
         email_received_at: toIST(event?.dates?.email_at || cc.email_at),
+         extracted_at: toIST(cc.extracted_at),
         statement_detected_at: toIST(event?.source?.extracted_at),
         paid_at: toIST(cc.paid_at, "date"),
         updated_at: toIST(cc.updated_at),
