@@ -51,7 +51,7 @@ export async function GET() {
     generated_at: toIST(new Date()),
     timezone: "Asia/Kolkata",
     sources: ["kv", "extractors"],
-    schema_version: "v2-data-complete",
+    schema_version: "v1",
   };
 
   /* =========================
