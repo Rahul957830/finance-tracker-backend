@@ -3,7 +3,7 @@ import { notifyTelegram } from "../../../../lib/notify/telegram";
 import { buildDailySummary } from "../../../../lib/notify/summaryBuilder";
 import { shouldSendNotification } from "../../../../lib/notify/dedupe";
 
-export const DEPLOY_ID = "DEPLOY_2026_01_23_2230";
+export const DEPLOY_ID = "DEPLOY_2026_01_26_10_PM";
 
 
 export const dynamic = "force-dynamic";
