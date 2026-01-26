@@ -3,27 +3,43 @@ import { kv } from "@vercel/kv";
 export const dynamic = "force-dynamic";
 
 /* =========================
-   IST TIME HELPERS
+   IST DISPLAY HELPERS
 ========================= */
-const IST_OFFSET_MINUTES = 330;
 
 /**
- * Convert any date input to IST ISO string
- * Safe for: null | undefined | string | Date
+ * Convert any date input to clean IST string
+ * mode = "datetime" | "date"
  */
-function toIST(dateInput) {
+function toIST(dateInput, mode = "datetime") {
   if (!dateInput) return null;
 
   const d = new Date(dateInput);
   if (isNaN(d.getTime())) return null;
 
-  const istTime = new Date(d.getTime() + IST_OFFSET_MINUTES * 60 * 1000);
-  return istTime.toISOString().replace("Z", "+05:30");
+  const options =
+    mode === "date"
+      ? {
+          timeZone: "Asia/Kolkata",
+          day: "2-digit",
+          month: "short",
+          year: "numeric",
+        }
+      : {
+          timeZone: "Asia/Kolkata",
+          day: "2-digit",
+          month: "short",
+          year: "numeric",
+          hour: "2-digit",
+          minute: "2-digit",
+          hour12: true,
+        };
+
+  return d.toLocaleString("en-IN", options);
 }
 
 export async function GET() {
   /* =========================
-     TIME (SAFE)
+     TIME (DISPLAY ONLY)
   ========================= */
   const generatedAt = new Date();
 
@@ -40,8 +56,8 @@ export async function GET() {
     generated_at: toIST(generatedAt),
     timezone: "Asia/Kolkata",
     window: {
-      from: toIST(startOfDay),
-      to: toIST(endOfDay),
+      from: toIST(startOfDay, "date"),
+      to: toIST(endOfDay, "date"),
     },
     sources: ["kv", "extractors"],
     schema_version: "v2-data-complete",
@@ -80,14 +96,14 @@ export async function GET() {
         status: cc.current_status,
         amount_due: Number(cc.amount_due || 0),
         currency: "INR",
-        due_date: toIST(cc.due_date),
+        due_date: toIST(cc.due_date, "date"),
         days_left: cc.days_left ?? null,
       },
 
       timestamps: {
         email_received_at: toIST(cc.email_at),
         statement_detected_at: toIST(cc.statement_extracted_at),
-        paid_at: toIST(cc.paid_at),
+        paid_at: toIST(cc.paid_at, "date"),
         updated_at: toIST(cc.updated_at),
       },
 
@@ -122,7 +138,7 @@ export async function GET() {
     const event = await kv.get(key);
     if (!event) continue;
 
-    // Skip CC bill events (already represented by cards)
+    // Skip CC bill events
     if (event.category === "CREDIT_CARD") continue;
 
     const rawPaidAt =
@@ -131,10 +147,10 @@ export async function GET() {
       event.timestamp ||
       null;
 
-    const paidAtIST = toIST(rawPaidAt);
+    const paidAtIST = toIST(rawPaidAt, "date");
     if (!paidAtIST) continue;
 
-    const dayKey = paidAtIST.slice(0, 10); // YYYY-MM-DD in IST
+    const dayKey = paidAtIST; // already clean date
 
     const payment = {
       payment_id: key,
@@ -184,9 +200,7 @@ export async function GET() {
     payments.push(payment);
 
     /* ---- Indexes ---- */
-    if (!paymentIndexByDay[dayKey]) {
-      paymentIndexByDay[dayKey] = [];
-    }
+    if (!paymentIndexByDay[dayKey]) paymentIndexByDay[dayKey] = [];
     paymentIndexByDay[dayKey].push(payment.payment_id);
 
     if (!paymentIndexByProvider[event.provider]) {
@@ -200,12 +214,10 @@ export async function GET() {
   ========================= */
   const unified = {
     meta,
-
     entities: {
       cards,
       payments,
     },
-
     indexes: {
       cards: {
         by_status: cardIndex,
