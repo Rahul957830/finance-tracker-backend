@@ -31,6 +31,18 @@ function toIST(dateInput, mode = "datetime") {
   return d.toLocaleString("en-IN", options);
 }
 
+/* =========================
+   EMAIL NORMALIZER
+========================= */
+function normalizeEmailFrom(value) {
+  if (!value) return null;
+
+  return value
+    .replace(/\\u003C/g, "<")
+    .replace(/\\u003E/g, ">")
+    .replace(/^<|>$/g, "");
+}
+
 export async function GET() {
   /* =========================
      META
