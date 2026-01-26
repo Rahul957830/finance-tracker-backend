@@ -137,7 +137,14 @@ if (send && text) {
         provider: event.provider,
         last4: event.account?.identifier ?? existing.last4,
         source_id: event.source_id,
-        statement_month: event.dates?.statement_month,
+         statement_month: event.dates?.statement_month,
+
+      // 📧 Email received date (immutable per statement)
+      email_at:
+     existing.email_at ??
+     event.dates?.email_at ??
+     null,
+         
         amount_due: event.amount?.value,
         due_date: event.dates?.due_date,
         days_left: event.status?.days_left,
