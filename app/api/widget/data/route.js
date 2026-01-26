@@ -98,6 +98,10 @@ export async function GET() {
         updated_at: toIST(cc.updated_at),
       },
 
+         source: {
+        email_id: cc.email_id,
+        email_from: cc.email_from,
+      }
       payment: {
         paid: cc.paid || false,
         payment_method: cc.payment_method || null,
