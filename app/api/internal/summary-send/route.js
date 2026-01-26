@@ -148,15 +148,6 @@ payments.sort((a, b) => {
     totalOutflow,
   });
   
-/* =========================
-   DEDUPLICATION (DAILY)
-========================= */
-
-const dedupe = await shouldSendNotification({
-  source: "DAILY_SUMMARY",
-  id: "GLOBAL",
-  reason: "AUTO",
-});
 
 if (!dedupe.send) {
   return new Response(
