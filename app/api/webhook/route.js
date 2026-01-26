@@ -149,6 +149,7 @@ if (send && text) {
         due_date: event.dates?.due_date,
         days_left: event.status?.days_left,
       email_at: event.dates?.email_at || existing.email_at || null,
+      extracted_at: event.source?.extracted_at || existing.extracted_at || null,
       email_id: event.source?.email_id || existing.email_id || null,
       email_from: event.source?.email_from || existing.email_from || null,
          
