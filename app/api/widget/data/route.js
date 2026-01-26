@@ -12,7 +12,12 @@ function toIST(dateInput, mode = "datetime") {
 
   const options =
     mode === "date"
-      ? { timeZone: "Asia/Kolkata", day: "2-digit", month: "short", year: "numeric" }
+      ? {
+          timeZone: "Asia/Kolkata",
+          day: "2-digit",
+          month: "short",
+          year: "numeric",
+        }
       : {
           timeZone: "Asia/Kolkata",
           day: "2-digit",
@@ -38,7 +43,7 @@ export async function GET() {
   };
 
   /* =========================
-     CARDS (KV: cc:*)
+     CARDS (UNCHANGED)
   ========================= */
   const cards = [];
   const cardIndex = { overdue: [], due: [], paid: [] };
@@ -51,31 +56,23 @@ export async function GET() {
 
     const cardId = key.replace("cc:", "");
 
-    /* ---- Fetch raw canonical event if available ---- */
-let event = null;
-
-if (cc.last_statement_event_id) {
-  const eventKeys = await kv.keys(
-    `event:*:${cc.last_statement_event_id}`
-  );
-
-  if (eventKeys.length > 0) {
-    const latestEventKey = eventKeys.sort().pop();
-    event = await kv.get(latestEventKey);
-  }
-}
+    let event = null;
+    if (cc.last_statement_event_id) {
+      const eventKeys = await kv.keys(`event:*:${cc.last_statement_event_id}`);
+      if (eventKeys.length) {
+        event = await kv.get(eventKeys.sort().pop());
+      }
+    }
 
     const card = {
       card_id: cardId,
 
-      /* 🔹 Identity */
       identity: {
         event_id: event?.event_id || cc.last_statement_event_id || null,
         event_type: event?.event_type || null,
-        category: event?.category || "CREDIT_CARD",
+        category: "CREDIT_CARD",
       },
 
-      /* 🔹 Account */
       account: {
         type: "CREDIT_CARD",
         provider: cc.provider,
@@ -84,7 +81,6 @@ if (cc.last_statement_event_id) {
         display_name: event?.account?.display_name || null,
       },
 
-      /* 🔹 Current State */
       current_state: {
         statement_month: cc.statement_month,
         status: cc.current_status,
@@ -95,7 +91,6 @@ if (cc.last_statement_event_id) {
         days_left: cc.days_left ?? null,
       },
 
-      /* 🔹 Timestamps */
       timestamps: {
         email_received_at: toIST(event?.dates?.email_at || cc.email_at),
         statement_detected_at: toIST(event?.source?.extracted_at),
@@ -103,27 +98,23 @@ if (cc.last_statement_event_id) {
         updated_at: toIST(cc.updated_at),
       },
 
-      /* 🔹 Payment */
       payment: {
         paid: cc.paid || false,
         payment_method: cc.payment_method || null,
       },
 
-      /* 🔹 Notification (from extractor) */
       notification: {
         severity: event?.notification?.severity || null,
         emoji: event?.notification?.emoji || null,
         message: event?.notification?.message || null,
       },
 
-      /* 🔹 Classification */
       classification: {
         class: event?.classification?.class || "CREDIT_CARD",
         confidence_level: event?.classification?.confidence_level || null,
         reasons: event?.classification?.reasons || [],
       },
 
-      /* 🔹 Linkage */
       linkage: {
         last_statement_event_id: cc.last_statement_event_id || null,
         visibility_month: cc.visibility_month || null,
@@ -138,7 +129,7 @@ if (cc.last_statement_event_id) {
   }
 
   /* =========================
-     PAYMENTS (UNCHANGED – ALREADY GOOD)
+     PAYMENTS (FULLY ENRICHED)
   ========================= */
   const payments = [];
   const paymentIndexByDay = {};
@@ -150,21 +141,71 @@ if (cc.last_statement_event_id) {
     const event = await kv.get(key);
     if (!event || event.category === "CREDIT_CARD") continue;
 
-    const paidAt = event.dates?.paid_at || event.created_at || event.timestamp;
-    const paidAtIST = toIST(paidAt, "date");
+    const rawPaidAt =
+      event.dates?.paid_at ||
+      event.created_at ||
+      event.timestamp ||
+      null;
+
+    const paidAtIST = toIST(rawPaidAt, "date");
     if (!paidAtIST) continue;
 
-    payments.push({
+    const payment = {
       payment_id: key,
+
+      identity: {
+        event_id: event.event_id || null,
+        event_type: event.event_type || null,
+        category: event.category,
+      },
+
+      account: {
+        type: event.account?.type || null,
+        identifier: event.account?.identifier || null,
+        display_name: event.account?.display_name || null,
+        ca_number: event.account?.ca_number || null,
+      },
+
       provider: event.provider,
-      amount: event.amount,
+
+      amount: {
+        value: Number(event.amount?.value || 0),
+        currency: event.amount?.currency || "INR",
+        confidence: event.amount?.confidence || null,
+      },
+
+      status: {
+        payment_status: event.status?.payment_status || null,
+      },
+
       timestamps: {
         paid_at: paidAtIST,
+        email_received_at: toIST(event.dates?.email_at),
         extracted_at: toIST(event.source?.extracted_at),
       },
-      notification: event.notification || null,
-    });
 
+      notification: {
+        severity: event.notification?.severity || null,
+        emoji: event.notification?.emoji || null,
+        message: event.notification?.message || null,
+      },
+
+      classification: {
+        class: event.classification?.class || "PAYMENT",
+        confidence_level: event.classification?.confidence_level || null,
+        reasons: event.classification?.reasons || [],
+      },
+
+      source: {
+        extractor: event.source_id || event.provider,
+        email_id: event.source?.email_id || null,
+        email_from: event.source?.email_from || null,
+      },
+    };
+
+    payments.push(payment);
+
+    /* ---- Indexes ---- */
     paymentIndexByDay[paidAtIST] ||= [];
     paymentIndexByDay[paidAtIST].push(key);
 
@@ -182,14 +223,20 @@ if (cc.last_statement_event_id) {
         entities: { cards, payments },
         indexes: {
           cards: { by_status: cardIndex },
-          payments: { by_day: paymentIndexByDay, by_provider: paymentIndexByProvider },
+          payments: {
+            by_day: paymentIndexByDay,
+            by_provider: paymentIndexByProvider,
+          },
         },
       },
       null,
       2
     ),
     {
-      headers: { "Content-Type": "application/json", "Cache-Control": "no-store" },
+      headers: {
+        "Content-Type": "application/json",
+        "Cache-Control": "no-store",
+      },
     }
   );
 }
