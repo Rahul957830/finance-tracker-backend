@@ -14,13 +14,15 @@ function buildCardLabel(card) {
   return `${p} CC ${l4} ${m}`.trim();
 }
 
-export async function GET() {
+export async function GET(request) {
+  const baseUrl = new URL(request.url).origin;
+
   /* =====================
      LOAD UNIFIED JSON
   ===================== */
- const unifiedRes = await fetch("/api/widget/unified", {
-  cache: "no-store",
-});
+const unifiedRes = await fetch(${baseUrl}/api/widget/unified, {
+    cache: "no-store",
+  });
 
   const unified = await unifiedRes.json();
 
