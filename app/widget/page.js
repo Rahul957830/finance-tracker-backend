@@ -1,9 +1,17 @@
-export default async function WidgetPage({ request }) {
-  const baseUrl = new URL(request.url).origin;
+export const dynamic = "force-dynamic";
 
-  const res = await fetch(`${baseUrl}/api/widget/view`, {
+export default async function WidgetPage() {
+  const res = await fetch("/api/widget/view", {
     cache: "no-store",
   });
+
+  if (!res.ok) {
+    return (
+      <div style={{ color: "red", padding: "12px" }}>
+        Failed to load widget data
+      </div>
+    );
+  }
 
   const data = await res.json();
 
