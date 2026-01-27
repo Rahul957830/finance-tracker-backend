@@ -2,7 +2,7 @@ import { kv } from "@vercel/kv";
 import {
   applyCardRules,
   applyPaymentRules,
-} from "@/lib/rules/widgetRules";
+} from "../../../../lib/rules/widgetRules";
 
 export const dynamic = "force-dynamic";
 
