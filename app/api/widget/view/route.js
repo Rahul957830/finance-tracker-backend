@@ -103,7 +103,6 @@ export async function GET(request) {
       amount: p.amount.value,
       paid_at: p.timestamps.paid_at,
       method: p.provider,
-      identifier: p.account.identifier,
       customer_number: p.account.ca_number || null
       
     });
