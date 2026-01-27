@@ -2,340 +2,108 @@ import { kv } from "@vercel/kv";
 
 export const dynamic = "force-dynamic";
 
-/* =========================
-   IST FORMATTERS (DISPLAY)
-========================= */
-function fmtIST(dateInput, mode = "datetime") {
-  if (!dateInput) return null;
-  const d = new Date(dateInput);
-  if (isNaN(d.getTime())) return null;
-
-  const opts =
-    mode === "date"
-      ? {
-          timeZone: "Asia/Kolkata",
-          day: "2-digit",
-          month: "short",
-          year: "numeric",
-        }
-      : {
-          timeZone: "Asia/Kolkata",
-          day: "2-digit",
-          month: "short",
-          year: "numeric",
-          hour: "2-digit",
-          minute: "2-digit",
-          hour12: true,
-        };
-
-  return d.toLocaleString("en-IN", opts);
+function fmtDate(d) {
+  if (!d) return null;
+  return d; // already IST + clean
 }
 
-function daysBetween(dateStr) {
-  if (!dateStr) return null;
-  const d = new Date(dateStr);
-  if (isNaN(d.getTime())) return null;
-  const now = new Date();
-  return Math.ceil((d - now) / (1000 * 60 * 60 * 24));
+function buildCardLabel(card) {
+  const p = card.account?.provider || "Card";
+  const l4 = card.account?.last4 || "";
+  const m = card.current_state?.statement_month || "";
+  return `${p} CC ${l4} ${m}`.trim();
 }
 
-/* =========================
-   URGENCY MAPPER
-========================= */
-function cardUrgency(status, daysLeft) {
-  if (status === "OVERDUE") return { urgency: "critical", rank: 1 };
-  if (status === "DUE" && daysLeft <= 2)
-    return { urgency: "high", rank: 2 };
-  if (status === "DUE") return { urgency: "normal", rank: 3 };
-  return { urgency: "low", rank: 4 };
-}
-
-/* =========================
-   DATE HELPERS
-========================= */
-function withinLastDays(dateStr, days) {
-  if (!dateStr) return false;
-  const d = new Date(dateStr);
-  if (isNaN(d.getTime())) return false;
-  const cutoff = new Date();
-  cutoff.setDate(cutoff.getDate() - days);
-  return d >= cutoff;
-}
-
-/* =========================
-   VIEW ENDPOINT
-========================= */
 export async function GET() {
-  const now = new Date();
+  /* =====================
+     LOAD UNIFIED JSON
+  ===================== */
+  const unifiedRes = await fetch(
+    `${process.env.NEXT_PUBLIC_BASE_URL}/api/widget/unified`,
+    { cache: "no-store" }
+  );
 
-  /* =========================
+  const unified = await unifiedRes.json();
+
+  /* =====================
      META
-  ========================= */
-  const meta = {
-    generated_at: fmtIST(now),
-    timezone: "Asia/Kolkata",
-    view_version: "v1",
-    source_schema_version: "v1",
-    window: {
-      cards: { paid_days: 30 },
-      payments: { days: 30 },
+  ===================== */
+  const view = {
+    meta: {
+      date: unified.meta.generated_at,
+      timezone: unified.meta.timezone,
     },
+    cards: {
+      overdue: [],
+      due: [],
+      paid: [],
+    },
+    payments: {},
   };
 
-  /* =========================
-     CARDS
-  ========================= */
-  const cardsByStatus = {
-    overdue: [],
-    due: [],
-    paid: [],
-  };
+  /* =====================
+     CARDS → VIEW
+  ===================== */
+  for (const card of unified.entities.cards) {
+    const item = {
+      card_id: card.card_id,
+      display: buildCardLabel(card),
+      amount_due: card.current_state.amount_due,
+      due_date: card.current_state.due_date,
+      days_left: card.current_state.days_left,
+      paid_at: card.timestamps.paid_at,
+      payment_method: card.payment?.payment_method || null,
+      email_from: card.source?.email_from || null,
+      email_received_at: card.timestamps.email_received_at,
+      status: card.current_state.status,
+    };
 
-  const ccKeys = await kv.keys("cc:*");
+    if (item.status === "OVERDUE") view.cards.overdue.push(item);
+    else if (item.status === "DUE") view.cards.due.push(item);
+    else if (item.status === "PAID") view.cards.paid.push(item);
+  }
 
-  for (const key of ccKeys) {
-    const cc = await kv.get(key);
-    if (!cc) continue;
+  // Sort cards (new → old)
+  const byDateDesc = (a, b, field) =>
+    new Date(b[field] || 0) - new Date(a[field] || 0);
 
-    // paid cards → only last 30 days
-    if (
-      cc.current_status === "PAID" &&
-      !withinLastDays(cc.paid_at, 30)
-    ) {
-      continue;
-    }
+  view.cards.overdue.sort((a, b) => byDateDesc(a, b, "due_date"));
+  view.cards.due.sort((a, b) => byDateDesc(a, b, "due_date"));
+  view.cards.paid.sort((a, b) => byDateDesc(a, b, "paid_at"));
 
-    let event = null;
-    if (cc.last_statement_event_id) {
-      const eKeys = await kv.keys(
-        `event:*:${cc.last_statement_event_id}`
+  /* =====================
+     PAYMENTS → VIEW
+  ===================== */
+  for (const p of unified.entities.payments) {
+    const day = p.timestamps.paid_at;
+    if (!day) continue;
+
+    if (!view.payments[day]) view.payments[day] = [];
+
+    view.payments[day].push({
+      display:
+        p.account?.identifier ||
+        p.account?.display_name ||
+        p.provider,
+      amount: p.amount.value,
+      paid_at: p.timestamps.paid_at,
+      method: p.provider,
+    });
+  }
+
+  // Sort payment days (new → old)
+  const sortedPayments = {};
+  Object.keys(view.payments)
+    .sort((a, b) => new Date(b) - new Date(a))
+    .forEach(day => {
+      sortedPayments[day] = view.payments[day].sort(
+        (a, b) => new Date(b.paid_at) - new Date(a.paid_at)
       );
-      if (eKeys.length) {
-        event = await kv.get(eKeys.sort().pop());
-      }
-    }
+    });
 
-    const daysLeft =
-      cc.days_left ?? daysBetween(cc.due_date);
+  view.payments = sortedPayments;
 
-    const { urgency, rank } = cardUrgency(
-      cc.current_status,
-      daysLeft
-    );
-
-    const cardView = {
-      id: key.replace("cc:", ""),
-
-      display: {
-        title: `${cc.provider} Credit Card`,
-        subtitle: `${cc.last4 || ""} · ${cc.statement_month || ""}`,
-        display_name: `${cc.provider} CC ${cc.last4 || ""} ${cc.statement_month || ""}`.trim(),
-      },
-
-      status: {
-        type: cc.current_status,
-        urgency,
-        priority_rank: rank,
-        days_left: daysLeft,
-      },
-
-      amount: {
-        due: Number(cc.amount_due || 0),
-        currency: "INR",
-        confidence: event?.amount?.confidence || null,
-      },
-
-      dates: {
-        statement_month: cc.statement_month,
-        due_date: fmtIST(cc.due_date, "date"),
-        paid_at: fmtIST(cc.paid_at, "date"),
-      },
-
-      payment: {
-        paid: cc.paid || false,
-        method: cc.payment_method || null,
-      },
-
-      email: {
-        from: cc.email_from || null,
-        received_at: fmtIST(cc.email_at),
-        email_id: cc.email_id || null,
-      },
-
-      classification: {
-        class: event?.classification?.class || "CREDIT_CARD",
-        confidence_level:
-          event?.classification?.confidence_level || null,
-        reasons: event?.classification?.reasons || [],
-      },
-
-      notification: {
-        severity: event?.notification?.severity || null,
-        emoji: event?.notification?.emoji || null,
-        message: event?.notification?.message || null,
-      },
-
-      source_refs: {
-        card_id: key.replace("cc:", ""),
-        event_id: cc.last_statement_event_id || null,
-        extractor: cc.source_id,
-        visibility_month: cc.visibility_month || null,
-      },
-
-      timestamps: {
-        extracted_at: fmtIST(cc.extracted_at),
-        updated_at: fmtIST(cc.updated_at),
-      },
-    };
-
-    if (cc.current_status === "OVERDUE")
-      cardsByStatus.overdue.push(cardView);
-    else if (cc.current_status === "DUE")
-      cardsByStatus.due.push(cardView);
-    else cardsByStatus.paid.push(cardView);
-  }
-
-  // sort New → Old
-  const sortNewOld = (a, b) =>
-    new Date(b.timestamps.updated_at) -
-    new Date(a.timestamps.updated_at);
-
-  cardsByStatus.overdue.sort(sortNewOld);
-  cardsByStatus.due.sort(sortNewOld);
-  cardsByStatus.paid.sort(sortNewOld);
-
-  /* =========================
-     PAYMENTS (LAST 30 DAYS)
-  ========================= */
-  const paymentsByDay = {};
-  let totalOutflow = 0;
-
-  const eventKeys = await kv.keys("event:*");
-
-  for (const key of eventKeys) {
-    const e = await kv.get(key);
-    if (!e || e.category === "CREDIT_CARD") continue;
-
-    const paidAt =
-      e.dates?.paid_at || e.created_at || e.timestamp;
-
-    if (!withinLastDays(paidAt, 30)) continue;
-
-    const day = fmtIST(paidAt, "date");
-
-    const paymentView = {
-      id: e.event_id,
-
-      display: {
-        title:
-          e.account?.identifier ||
-          e.account?.display_name ||
-          e.provider,
-        subtitle: e.account?.type || "Payment",
-        display_name:
-          e.account?.display_name ||
-          e.account?.identifier ||
-          e.provider,
-      },
-
-      amount: {
-        value: Number(e.amount?.value || 0),
-        currency: "INR",
-        confidence: e.amount?.confidence || null,
-      },
-
-      status: {
-        payment_status: e.status?.payment_status || "PAID",
-        urgency: "normal",
-        priority_rank: 5,
-      },
-
-      dates: {
-        paid_at: day,
-        email_received_at: fmtIST(e.dates?.email_at),
-      },
-
-      account: {
-        type: e.account?.type || null,
-        identifier: e.account?.identifier || null,
-        display_name: e.account?.display_name || null,
-        ca_number: e.account?.ca_number || null,
-      },
-
-      provider: e.provider,
-
-      classification: {
-        class: e.classification?.class || "PAYMENT",
-        confidence_level:
-          e.classification?.confidence_level || null,
-        reasons: e.classification?.reasons || [],
-      },
-
-      notification: {
-        severity: e.notification?.severity || null,
-        emoji: e.notification?.emoji || null,
-        message: e.notification?.message || null,
-      },
-
-      email: {
-        from: e.source?.email_from || null,
-        email_id: e.source?.email_id || null,
-      },
-
-      source_refs: {
-        event_id: e.event_id,
-        extractor: e.source_id || e.provider,
-      },
-
-      timestamps: {
-        extracted_at: fmtIST(e.source?.extracted_at),
-      },
-    };
-
-    paymentsByDay[day] ||= [];
-    paymentsByDay[day].push(paymentView);
-    totalOutflow += paymentView.amount.value;
-  }
-
-  // sort payments per day (New → Old)
-  Object.values(paymentsByDay).forEach(arr =>
-    arr.sort(
-      (a, b) =>
-        new Date(b.timestamps.extracted_at) -
-        new Date(a.timestamps.extracted_at)
-    )
-  );
-
-  /* =========================
-     FINAL VIEW JSON
-  ========================= */
-  return new Response(
-    JSON.stringify(
-      {
-        meta,
-        sections: {
-          cards: cardsByStatus,
-          payments: { by_day: paymentsByDay },
-        },
-        stats: {
-          cards: {
-            overdue: cardsByStatus.overdue.length,
-            due: cardsByStatus.due.length,
-            paid: cardsByStatus.paid.length,
-          },
-          payments: {
-            total_outflow: totalOutflow,
-          },
-        },
-      },
-      null,
-      2
-    ),
-    {
-      headers: {
-        "Content-Type": "application/json",
-        "Cache-Control": "no-store",
-      },
-    }
-  );
+  return new Response(JSON.stringify(view, null, 2), {
+    headers: { "Content-Type": "application/json", "Cache-Control": "no-store" },
+  });
 }
