@@ -102,8 +102,8 @@ export async function GET(request) {
       amount: p.amount.value,
       paid_at: p.timestamps.paid_at,
       method: p.provider,
-      identifier: payment.account.identifier,
-      customer_number: payment.account.ca_number || null
+      identifier: p.account.identifier,
+      customer_number: p.account.ca_number || null
       
     });
   }
