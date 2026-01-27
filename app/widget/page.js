@@ -1,8 +1,11 @@
-export default async function WidgetPage() {
+export default async function WidgetPage({ request }) {
+  const baseUrl = new URL(request.url).origin;
+
   const res = await fetch(
-    `${process.env.NEXT_PUBLIC_BASE_URL}/api/widget/view`,
+    ${baseUrl}/api/widget/view,
     { cache: "no-store" }
   );
+
 
   const data = await res.json();
 
