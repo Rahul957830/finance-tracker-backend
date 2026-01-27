@@ -56,6 +56,7 @@ export async function GET(request) {
   for (const card of unified.entities.cards) {
     const item = {
       card_id: card.card_id,
+      status: card.current_state.status,
       display: buildCardLabel(card),
       provider: card.account.provider,     // ICICI
       last4: card.account.last4,           // 7003
