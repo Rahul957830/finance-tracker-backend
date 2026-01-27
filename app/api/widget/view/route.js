@@ -20,7 +20,7 @@ export async function GET(request) {
   /* =========================
      LOAD UNIFIED JSON
   ========================= */
-  const unifiedRes = await fetch(${baseUrl}/api/widget/unified, {
+ const unifiedRes = await fetch(`${baseUrl}/api/widget/unified`, {
     cache: "no-store",
   });
 
