@@ -18,10 +18,9 @@ export async function GET() {
   /* =====================
      LOAD UNIFIED JSON
   ===================== */
-  const unifiedRes = await fetch(
-    `${process.env.NEXT_PUBLIC_BASE_URL}/api/widget/unified`,
-    { cache: "no-store" }
-  );
+ const unifiedRes = await fetch("/api/widget/unified", {
+  cache: "no-store",
+});
 
   const unified = await unifiedRes.json();
 
