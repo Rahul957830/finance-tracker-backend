@@ -6,6 +6,13 @@ function fmtDate(d) {
   if (!d) return null;
   return d; // already IST + clean
 }
+function formatStatementMonth(yyyymm) {
+  if (!yyyymm) return null;
+  const year = yyyymm.slice(0, 4);
+  const month = yyyymm.slice(4, 6);
+  const date = new Date(`${year}-${month}-01`);
+  return date.toLocaleString("en-IN", { month: "short" }) + "'" + year.slice(2);
+}
 
 function buildCardLabel(card) {
   const p = card.account?.provider || "Card";
@@ -50,6 +57,11 @@ export async function GET(request) {
     const item = {
       card_id: card.card_id,
       display: buildCardLabel(card),
+      provider: card.account.provider,     // ICICI
+      last4: card.account.last4,           // 7003
+      statement_month: formatStatementMonth(
+      card.current_state.statement_month
+  ),                                   // Dec'25
       amount_due: card.current_state.amount_due,
       due_date: card.current_state.due_date,
       days_left: card.current_state.days_left,
@@ -57,7 +69,7 @@ export async function GET(request) {
       payment_method: card.payment?.payment_method || null,
       email_from: card.source?.email_from || null,
       email_received_at: card.timestamps.email_received_at,
-      status: card.current_state.status,
+      
     };
 
     if (item.status === "OVERDUE") view.cards.overdue.push(item);
@@ -90,6 +102,9 @@ export async function GET(request) {
       amount: p.amount.value,
       paid_at: p.timestamps.paid_at,
       method: p.provider,
+      identifier: payment.account.identifier,
+      customer_number: payment.account.ca_number || null
+      
     });
   }
 
