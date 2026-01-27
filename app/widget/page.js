@@ -1,8 +1,6 @@
-export default async function WidgetPage({ request }) {
-  const baseUrl = new URL(request.url).origin;
-
+export default async function WidgetPage() {
   const res = await fetch(
-    ${baseUrl}/api/widget/view,
+    "/api/widget/view",
     { cache: "no-store" }
   );
 
