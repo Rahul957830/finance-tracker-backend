@@ -1,3 +1,61 @@
+/* =========================
+   RULES LEGEND (HUMAN READABLE)
+
+   Time basis:
+   - All rules are evaluated at view-generation time
+   - Timezone used: Asia/Kolkata
+
+   CARD RULES
+   ----------
+   OVERDUE:
+   - Condition: current_status = OVERDUE (days_left < 0)
+   - Urgency: HIGH
+   - Needs action: YES
+   - Visibility: ALWAYS
+   - Labels:
+     • "Overdue today" (days_left = 0)
+     • "Overdue by N days" (days_left < 0)
+   - Limit: No time limit. Shown until resolved.
+
+   DUE:
+   - Condition: current_status = DUE (days_left ≥ 0)
+   - Urgency: MEDIUM
+   - Needs action: YES
+   - Visibility: ALWAYS
+   - Labels:
+     • "Due today" (0)
+     • "Due tomorrow" (1)
+     • "Due in N days" (>1)
+   - Limit: No time limit. Always shown.
+
+   PAID (Cards):
+   - Condition: current_status = PAID
+   - Urgency: LOW
+   - Needs action: NO
+   - Visibility:
+     • Visible for 30 days after paid_at
+     • Marked expired after 30 days
+   - Label: "Paid"
+
+   PAYMENT RULES (Non-card)
+   ------------------------
+   PAID:
+   - Condition: payment has paid_at timestamp
+   - Urgency: LOW
+   - Visibility:
+     • Visible for 30 days after paid_at
+     • Marked expired after 30 days
+   - Note: Expired payments remain in data and are never removed.
+
+   IMPORTANT NOTES
+   ---------------
+   - Expired items are NOT removed from view JSON
+   - Visibility is a UI hint only (dim / hide / collapse)
+   - View applies rules but NEVER mutates source data
+========================= */
+
+
+
 export const dynamic = "force-dynamic";
 
 /* =========================
