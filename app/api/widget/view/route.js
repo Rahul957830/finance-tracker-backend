@@ -113,8 +113,6 @@ export async function GET(request) {
       display_name: payment.account?.display_name ?? null,
      message: payment.notification?.message ?? null,
      extracted_at: payment.timestamps?.extracted_at ?? null,
-});
-
        
     });
   }
