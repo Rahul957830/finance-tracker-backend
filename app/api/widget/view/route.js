@@ -66,67 +66,6 @@ export async function GET(request) {
       generated_at: fmtDateTime(unified.meta.generated_at),
     },
 
-     rules_legend: {
-  time_basis: "All rules are evaluated at view generation time (Asia/Kolkata)",
-
-  card_rules: {
-    OVERDUE: {
-      when: "current_status = OVERDUE (days_left < 0)",
-      urgency: "high",
-      needs_action: true,
-      visibility: "always",
-      label: [
-        "Overdue today (days_left = 0)",
-        "Overdue by N days (days_left < 0)"
-      ],
-      limit: "No time limit. Always shown until resolved."
-    },
-
-    DUE: {
-      when: "current_status = DUE (days_left ≥ 0)",
-      urgency: "medium",
-      needs_action: true,
-      visibility: "always",
-      label: [
-        "Due today (0)",
-        "Due tomorrow (1)",
-        "Due in N days (>1)"
-      ],
-      limit: "No time limit. Always shown."
-    },
-
-    PAID: {
-      when: "current_status = PAID",
-      urgency: "low",
-      needs_action: false,
-      visibility: [
-        "Visible for 30 days after paid_at",
-        "Expired after 30 days"
-      ],
-      label: "Paid"
-    }
-  },
-
-  payment_rules: {
-    PAID: {
-      when: "payment has paid_at timestamp",
-      urgency: "low",
-      visibility: [
-        "Visible for 30 days after paid_at",
-        "Expired after 30 days"
-      ],
-      note: "Expired payments remain in data and are never removed."
-    }
-  },
-
-  important: [
-    "Expired items are NOT removed from view JSON",
-    "Visibility is a hint for UI (dim / hide / collapse)",
-    "View applies rules but does not change source data"
-  ]
-}
-  
-
     summary: {
       cards: { overdue: 0, due: 0, paid: 0 },
       payments: 0,
@@ -379,11 +318,6 @@ view.summary = {
   payments: view.summary.payments,
   payments_visibility: view.summary.payments_visibility,
 };
-
-
-
-   
-
 
   /* =========================
      RESPONSE
