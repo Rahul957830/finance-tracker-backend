@@ -97,23 +97,27 @@ export async function GET(request) {
     if (!view.payments[day]) view.payments[day] = [];
 
     view.payments[day].push({
-      event_id: payment.event_id || null,
-      event_type: payment.event_type || null,
-      source_id: payment.source_id || null,
+      /* identity */
+  event_id: payment.event_id,
+  event_type: payment.event_type,
+  source_id: payment.source_id,
 
-      provider: payment.provider || null,
-      identifier: payment.account?.identifier || null,
-      ca_number: payment.account?.ca_number || null,
+  /* core fields */
+  provider: payment.provider,
+  identifier: payment.account?.identifier || null,
+  display_name: payment.account?.display_name ?? null,
+  ca_number: payment.account?.ca_number || null,
 
-      value: payment.amount?.value ?? null,
-      paid_at: paidAt,
+  value: payment.amount?.value ?? null,
+  paid_at: payment.timestamps?.paid_at ?? null,
+  payment_status: payment.status?.payment_status ?? null,
 
-      payment_status: payment.status?.payment_status || null,
-      email_from: payment.source?.email_from || null,
-      display_name: payment.account?.display_name ?? null,
-     message: payment.notification?.message ?? null,
-     extracted_at: payment.timestamps?.extracted_at ?? null,
+  email_from: payment.source?.email_from ?? null,
+  message: payment.notification?.message ?? null,
        
+  /* timestamps */
+  extracted_at: payment.timestamps?.extracted_at ?? null,
+
     });
   }
 
