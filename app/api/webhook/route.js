@@ -161,7 +161,19 @@ if (send && text) {
             ? "PAID"
             : extractorStatus ?? existing.current_status,
 
-        updated_at: new Date().toISOString(),
+        
+updated_at: new Date().toLocaleString("en-IN", {
+  timeZone: "Asia/Kolkata",
+  year: "numeric",
+  month: "2-digit",
+  day: "2-digit",
+  hour: "2-digit",
+  minute: "2-digit",
+  second: "2-digit",
+  hour12: false,
+}).replace(",", "");
+
+         
       };
 
       await kv.set(ccKey, updated);
