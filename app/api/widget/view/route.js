@@ -66,81 +66,63 @@ export async function GET(request) {
       generated_at: fmtDateTime(unified.meta.generated_at),
     },
 
-rules_legend: {
-  urgency: {
-    high: "Immediate attention required. Used for overdue card bills.",
-    medium: "Action needed soon. Used for upcoming or due-today card bills.",
-    low: "Informational only. No immediate action required."
-  },
-
-  visibility: {
-    always:
-      "Item is always shown. Used for overdue and due card bills.",
-    visible:
-      "Item is shown by default. Used for recently paid cards or payments (within 30 days).",
-    expired:
-      "Item is older than 30 days. Still included in data but marked as expired for UI handling."
-  },
-
-  needs_action: {
-    true:
-      "User action is required, such as making a payment or reviewing a bill.",
-    false:
-      "No user action required. Item is informational."
-  },
+     rules_legend: {
+  time_basis: "All rules are evaluated at view generation time (Asia/Kolkata)",
 
   card_rules: {
     OVERDUE: {
+      when: "current_status = OVERDUE (days_left < 0)",
       urgency: "high",
       needs_action: true,
       visibility: "always",
-      status_label_examples: [
-        "Overdue today",
-        "Overdue by 3 days"
+      label: [
+        "Overdue today (days_left = 0)",
+        "Overdue by N days (days_left < 0)"
       ],
-      description:
-        "Credit card bill has passed its due date. Always shown until resolved."
+      limit: "No time limit. Always shown until resolved."
     },
 
     DUE: {
+      when: "current_status = DUE (days_left ≥ 0)",
       urgency: "medium",
       needs_action: true,
       visibility: "always",
-      status_label_examples: [
-        "Due today",
-        "Due tomorrow",
-        "Due in 5 days"
+      label: [
+        "Due today (0)",
+        "Due tomorrow (1)",
+        "Due in N days (>1)"
       ],
-      description:
-        "Credit card bill is due soon or today. User should pay before due date."
+      limit: "No time limit. Always shown."
     },
 
     PAID: {
+      when: "current_status = PAID",
       urgency: "low",
       needs_action: false,
-      visibility:
-        "visible for 30 days after payment, then marked as expired",
-      status_label: "Paid",
-      description:
-        "Credit card bill has been paid. Shown for recent history and reference."
+      visibility: [
+        "Visible for 30 days after paid_at",
+        "Expired after 30 days"
+      ],
+      label: "Paid"
     }
   },
 
   payment_rules: {
     PAID: {
+      when: "payment has paid_at timestamp",
       urgency: "low",
-      visibility:
-        "visible for 30 days after payment, then marked as expired",
-      description:
-        "Successful non-card payment (subscriptions, services, utilities). Used for transaction history."
+      visibility: [
+        "Visible for 30 days after paid_at",
+        "Expired after 30 days"
+      ],
+      note: "Expired payments remain in data and are never removed."
     }
   },
 
-  notes: [
-    "Rules are computed in code, not inferred by the UI.",
-    "Expired items are NOT removed from the view JSON.",
-    "UI decides whether to dim, collapse, or hide expired items.",
-    "View JSON reshapes data but does not alter rule logic."
+  important: [
+    "Expired items are NOT removed from view JSON",
+    "Visibility is a hint for UI (dim / hide / collapse)",
+    "View applies rules but does not change source data"
   ]
 }
   
