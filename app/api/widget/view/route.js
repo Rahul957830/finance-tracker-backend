@@ -9,6 +9,36 @@ export async function GET(request) {
   const baseUrl = new URL(request.url).origin;
 
   /* =========================
+     HELPERS (IST formatting)
+  ========================= */
+  const fmtDateTime = (v) => {
+    if (!v) return null;
+    const d = new Date(v);
+    if (isNaN(d)) return null;
+    return d.toLocaleString("en-IN", {
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: true,
+      timeZone: "Asia/Kolkata",
+    });
+  };
+
+  const fmtDate = (v) => {
+    if (!v) return null;
+    const d = new Date(v);
+    if (isNaN(d)) return null;
+    return d.toLocaleDateString("en-IN", {
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
+      timeZone: "Asia/Kolkata",
+    });
+  };
+
+  /* =========================
      LOAD UNIFIED JSON
   ========================= */
   const res = await fetch(`${baseUrl}/api/widget/unified`, {
@@ -22,7 +52,10 @@ export async function GET(request) {
      BASE VIEW SHAPE
   ========================= */
   const view = {
-    meta: unified.meta,
+    meta: {
+      ...unified.meta,
+      generated_at: fmtDateTime(unified.meta.generated_at),
+    },
 
     summary: {
       cards: {
@@ -43,7 +76,7 @@ export async function GET(request) {
   };
 
   /* =========================
-     CARD RULES (INLINE)
+     CARD RULES
   ========================= */
   function applyCardRules(item) {
     let urgency = "low";
@@ -81,157 +114,157 @@ export async function GET(request) {
       needs_action = false;
       status_label = "Paid";
 
-      if (item.paid_at) {
+      if (item.paid_at_raw) {
         const diffDays =
-          (now - new Date(item.paid_at)) / (1000 * 60 * 60 * 24);
+          (now - new Date(item.paid_at_raw)) / (1000 * 60 * 60 * 24);
         visibility = diffDays <= 30 ? "visible" : "expired";
       }
     }
 
-    return {
-      urgency,
-      needs_action,
-      visibility,
-      status_label,
-    };
+    return { urgency, needs_action, visibility, status_label };
   }
 
   /* =========================
      CARDS → VIEW
   ========================= */
   for (const card of unified.entities.cards) {
-    const state = card.state || {};
-    const ts = card.timestamps || {};
-    const email = card.email || {};
-    const event = card.event || {};
+    const s = card.state || {};
+    const t = card.timestamps || {};
+    const e = card.email || {};
+    const ev = card.event || {};
+
+    const sortKeyRaw =
+      s.current_status === "PAID" ? t.paid_at : s.due_date;
 
     const item = {
-      event_id: event.event_id || null,
-      source_id: event.source_id || null,
-      current_status: state.current_status || null,
+      event_id: ev.event_id || null,
+      source_id: ev.source_id || null,
+      current_status: s.current_status || null,
 
-      provider: state.provider || null,
-      last4: state.last4 || null,
-      identifier: state.last4 || null,
+      provider: s.provider || null,
+      last4: s.last4 || null,
+      identifier: s.last4 || null,
 
-      statement_month: state.statement_month || null,
-      amount_due: state.amount_due ?? null,
-      due_date: state.due_date || null,
-      days_left: state.days_left ?? null,
+      statement_month: s.statement_month || null,
+      amount_due: s.amount_due ?? null,
+      due_date: fmtDate(s.due_date),
+      days_left: s.days_left ?? null,
 
-      email_at: ts.email_at || null,
-      email_from: email.email_from || null,
+      email_at: fmtDateTime(t.email_at),
+      email_from: e.email_from || null,
 
-      paid_at: ts.paid_at || null,
-      payment_method: state.payment_method || null,
+      paid_at: fmtDate(t.paid_at),
+      payment_method: s.payment_method || null,
 
-      extracted_at: ts.extracted_at || null,
+      extracted_at: fmtDateTime(t.extracted_at),
 
-      sort_key:
-        state.current_status === "PAID"
-          ? ts.paid_at
-          : state.due_date,
+      /* internal only */
+      paid_at_raw: t.paid_at || null,
+      sort_key_raw: sortKeyRaw || null,
     };
 
     item.rules = applyCardRules(item);
 
-    if (item.current_status === "OVERDUE") {
-      view.cards.overdue.push(item);
-    } else if (item.current_status === "DUE") {
-      view.cards.due.push(item);
-    } else if (item.current_status === "PAID") {
-      view.cards.paid.push(item);
-    }
+    if (item.current_status === "OVERDUE") view.cards.overdue.push(item);
+    else if (item.current_status === "DUE") view.cards.due.push(item);
+    else if (item.current_status === "PAID") view.cards.paid.push(item);
   }
 
-  /* ---- sort cards (new → old) ---- */
   const sortDesc = (a, b) =>
-    new Date(b.sort_key || 0) - new Date(a.sort_key || 0);
+    new Date(b.sort_key_raw || 0) - new Date(a.sort_key_raw || 0);
 
   view.cards.overdue.sort(sortDesc);
   view.cards.due.sort(sortDesc);
   view.cards.paid.sort(sortDesc);
 
   /* =========================
-     PAYMENT RULES (INLINE)
+     PAYMENT RULES
   ========================= */
   function applyPaymentRules(item) {
     let urgency = "low";
     let visibility = "hidden";
 
-    if (item.paid_at) {
+    if (item.paid_at_raw) {
       const diffDays =
-        (now - new Date(item.paid_at)) / (1000 * 60 * 60 * 24);
+        (now - new Date(item.paid_at_raw)) / (1000 * 60 * 60 * 24);
       visibility = diffDays <= 30 ? "visible" : "expired";
     }
 
-    return {
-      urgency,
-      visibility,
-    };
+    return { urgency, visibility };
   }
 
   /* =========================
      PAYMENTS → VIEW
   ========================= */
-  for (const payment of unified.entities.payments) {
-    const paidAt =
-      payment.dates?.paid_at ||
-      payment.timestamps?.paid_at ||
-      payment.source?.extracted_at ||
+  for (const p of unified.entities.payments) {
+    const paidRaw =
+      p.dates?.paid_at ||
+      p.timestamps?.paid_at ||
+      p.source?.extracted_at ||
       null;
 
-    if (!paidAt) continue;
+    if (!paidRaw) continue;
 
-    const day = String(paidAt).slice(0, 10);
+    const dayKey = new Date(paidRaw)
+      .toISOString()
+      .slice(0, 10);
 
-    if (!view.payments[day]) {
-      view.payments[day] = {
-        date: day,
+    if (!view.payments[dayKey]) {
+      view.payments[dayKey] = {
+        date: dayKey,
+        label: fmtDate(dayKey),
         items: [],
       };
     }
 
     const item = {
-      event_id: payment.event_id,
-      event_type: payment.event_type,
-      source_id: payment.source_id,
+      event_id: p.event_id,
+      event_type: p.event_type,
+      source_id: p.source_id,
 
-      provider: payment.provider,
-      identifier: payment.account?.identifier || null,
-      display_name: payment.account?.display_name ?? null,
-      ca_number: payment.account?.ca_number || null,
+      provider: p.provider,
+      identifier: p.account?.identifier || null,
+      display_name: p.account?.display_name ?? null,
+      ca_number: p.account?.ca_number || null,
 
-      value: payment.amount?.value ?? null,
-      paid_at: payment.dates?.paid_at ?? null,
-      payment_status: payment.status?.payment_status ?? "PAID",
+      value: p.amount?.value ?? null,
+      paid_at: fmtDateTime(paidRaw),
+      payment_status: p.status?.payment_status ?? "PAID",
 
-      email_from: payment.source?.email_from ?? null,
-      message: payment.notification?.message ?? null,
+      email_from: p.source?.email_from ?? null,
+      message: p.notification?.message ?? null,
 
-      extracted_at:
-        payment.timestamps?.extracted_at ??
-        payment.source?.extracted_at ??
-        null,
+      extracted_at: fmtDateTime(
+        p.timestamps?.extracted_at ?? p.source?.extracted_at
+      ),
+
+      /* internal */
+      paid_at_raw: paidRaw,
     };
 
     item.rules = applyPaymentRules(item);
-    view.payments[day].items.push(item);
+    view.payments[dayKey].items.push(item);
   }
 
-  /* ---- sort payment days + items (new → old) ---- */
+  /* =========================
+     SORT + FILTER PAYMENTS
+  ========================= */
   const sortedPayments = {};
   Object.keys(view.payments)
     .sort((a, b) => new Date(b) - new Date(a))
-    .forEach(day => {
-      const visibleItems = view.payments[day].items
-        .filter(p => p.rules.visibility === "visible")
-        .sort((a, b) => new Date(b.paid_at) - new Date(a.paid_at));
+    .forEach((day) => {
+      const visible = view.payments[day].items
+        .filter((i) => i.rules.visibility === "visible")
+        .sort(
+          (a, b) =>
+            new Date(b.paid_at_raw) - new Date(a.paid_at_raw)
+        );
 
-      if (visibleItems.length) {
+      if (visible.length) {
         sortedPayments[day] = {
           date: day,
-          items: visibleItems,
+          label: view.payments[day].label,
+          items: visible,
         };
       }
     });
@@ -239,14 +272,14 @@ export async function GET(request) {
   view.payments = sortedPayments;
 
   /* =========================
-     SUMMARY COUNTS
+     SUMMARY
   ========================= */
   view.summary.cards.overdue = view.cards.overdue.length;
   view.summary.cards.due = view.cards.due.length;
   view.summary.cards.paid = view.cards.paid.length;
 
   view.summary.payments = Object.values(view.payments).reduce(
-    (sum, d) => sum + d.items.length,
+    (s, d) => s + d.items.length,
     0
   );
 
