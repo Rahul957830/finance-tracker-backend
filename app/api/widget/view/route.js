@@ -286,6 +286,28 @@ if (items.length) {
     (s, d) => s + d.items.length,
     0
   );
+   
+/* =========================
+   VISIBILITY SUMMARY
+========================= */
+
+// ---- Card visibility (PAID only) ----
+const paidCards = view.cards.paid;
+
+view.summary.cards_visibility = {
+  visible: paidCards.filter(c => c.rules.visibility === "visible").length,
+  expired: paidCards.filter(c => c.rules.visibility === "expired").length,
+};
+
+// ---- Payment visibility ----
+const allPayments = Object.values(view.payments)
+  .flatMap(d => d.items);
+
+view.summary.payments_visibility = {
+  visible: allPayments.filter(p => p.rules.visibility === "visible").length,
+  expired: allPayments.filter(p => p.rules.visibility === "expired").length,
+};
+
 
   /* =========================
      RESPONSE
