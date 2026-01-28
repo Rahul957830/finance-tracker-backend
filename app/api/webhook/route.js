@@ -162,7 +162,7 @@ if (send && text) {
             : extractorStatus ?? existing.current_status,
 
         
-updated_at: new Date().toLocaleString("en-IN", {
+updated_at: new Intl.DateTimeFormat("en-CA", {
   timeZone: "Asia/Kolkata",
   year: "numeric",
   month: "2-digit",
@@ -171,7 +171,9 @@ updated_at: new Date().toLocaleString("en-IN", {
   minute: "2-digit",
   second: "2-digit",
   hour12: false
-}),
+})
+  .format(new Date())
+  .replace(",", ""),
          
       };
 
