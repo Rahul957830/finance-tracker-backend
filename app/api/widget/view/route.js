@@ -1,154 +1,208 @@
-import { kv } from "@vercel/kv";
-import {
-  applyCardRules,
-  applyPaymentRules,
-} from "../../../../lib/rules/widgetRules";
+{
+  "meta": {
+    "generated_at": "28 Jan 2026, 03:45 pm",
+    "timezone": "Asia/Kolkata"
+  },
 
-export const dynamic = "force-dynamic";
+  "cards": {
+    "overdue": [
+      {
+        "card_id": "ICICI_CC_7003_202512",
+        "status": "OVERDUE",
 
-/* =====================
-   HELPERS
-===================== */
+        "display": "ICICI CC 7003 Dec'25",
 
-function formatStatementMonth(yyyymm) {
-  if (!yyyymm) return null;
-  const year = yyyymm.slice(0, 4);
-  const month = yyyymm.slice(4, 6);
-  const date = new Date(`${year}-${month}-01`);
-  return (
-    date.toLocaleString("en-IN", { month: "short" }) +
-    "'" +
-    year.slice(2)
-  );
-}
+        "account": {
+          "provider": "ICICI",
+          "last4": "7003",
+          "statement_month": "Dec'25"
+        },
 
-function buildCardLabel(card) {
-  const p = card.account?.provider || "Card";
-  const l4 = card.account?.last4 || "";
-  const m = formatStatementMonth(card.current_state?.statement_month);
-  return `${p} CC ${l4} ${m || ""}`.trim();
-}
+        "amount": {
+          "due": 6214.72,
+          "currency": "INR"
+        },
 
-/* =====================
-   VIEW JSON
-===================== */
+        "dates": {
+          "due_date": "15 Jan 2026",
+          "paid_at": null,
+          "email_received_at": "29 Dec 2025, 09:02 am",
+          "extracted_at": "28 Jan 2026, 12:13 pm",
+          "updated_at": "28 Jan 2026, 11:00 am"
+        },
 
-export async function GET(request) {
-  const baseUrl = new URL(request.url).origin;
+        "days_left": -13,
 
-  /* =====================
-     LOAD UNIFIED JSON
-  ===================== */
-  const unifiedRes = await fetch(`${baseUrl}/api/widget/unified`, {
-    cache: "no-store",
-  });
+        "payment": {
+          "paid": false,
+          "method": "Paytm"
+        },
 
-  const unified = await unifiedRes.json();
+        "source": {
+          "email_from": "credit_cards@icicibank.com",
+          "email_id": "19b682a1059bbac3"
+        },
 
-  /* =====================
-     BASE VIEW SHAPE
-  ===================== */
-  const view = {
-    meta: {
-      date: unified.meta.generated_at,
-      timezone: unified.meta.timezone,
-    },
+        "linkage": {
+          "last_statement_event_id": "ICICI_CC_7003_202512"
+        }
+      }
+    ],
 
-    cards: {
-      overdue: [],
-      due: [],
-      paid: [],
-    },
+    "due": [
+      {
+        "card_id": "AXIS_CC_XX22_202601",
+        "status": "DUE",
 
-    payments: {},
-  };
+        "display": "AXIS CC XX22 Jan'26",
 
-  /* =====================
-     CARDS → VIEW + RULES
-  ===================== */
-  for (const card of unified.entities.cards) {
-    const rawCard = {
-      card_id: card.card_id,
-      status: card.current_state.status,
+        "account": {
+          "provider": "AXIS",
+          "last4": "XX22",
+          "statement_month": "Jan'26"
+        },
 
-      display: buildCardLabel(card),
+        "amount": {
+          "due": 11050,
+          "currency": "INR"
+        },
 
-      provider: card.account.provider,
-      last4: card.account.last4,
-      statement_month: formatStatementMonth(
-        card.current_state.statement_month
-      ),
+        "dates": {
+          "due_date": "10 Feb 2026",
+          "paid_at": null,
+          "email_received_at": "12 Jan 2026, 06:53 pm",
+          "extracted_at": "28 Jan 2026, 10:59 am",
+          "updated_at": "28 Jan 2026, 11:00 am"
+        },
 
-      amount_due: card.current_state.amount_due,
-      due_date: card.current_state.due_date,
-      days_left: card.current_state.days_left,
+        "days_left": 13,
 
-      paid_at: card.timestamps.paid_at,
-      payment_method: card.payment?.payment_method || null,
+        "payment": {
+          "paid": false,
+          "method": null
+        },
 
-      email_from: card.source?.email_from || null,
-      email_received_at: card.timestamps.email_received_at,
-    };
+        "source": {
+          "email_from": "cc.statements@axisbank.com",
+          "email_id": "19a783cc50e2c873"
+        },
 
-    const item = applyCardRules(rawCard);
+        "linkage": {
+          "last_statement_event_id": "AXIS_CC_XX22_202601"
+        }
+      }
+    ],
 
-    if (item.status === "OVERDUE") view.cards.overdue.push(item);
-    else if (item.status === "DUE") view.cards.due.push(item);
-    else if (item.status === "PAID") view.cards.paid.push(item);
+    "paid": [
+      {
+        "card_id": "ICICI_CC_7000_202511",
+        "status": "PAID",
+
+        "display": "ICICI CC 7000 Nov'25",
+
+        "account": {
+          "provider": "ICICI",
+          "last4": "7000",
+          "statement_month": "Nov'25"
+        },
+
+        "amount": {
+          "due": 0,
+          "currency": "INR"
+        },
+
+        "dates": {
+          "due_date": "20 Nov 2025",
+          "paid_at": "26 Jan 2026",
+          "email_received_at": "04 Nov 2025, 12:44 pm",
+          "extracted_at": "26 Jan 2026, 05:44 pm",
+          "updated_at": "26 Jan 2026, 05:45 pm"
+        },
+
+        "days_left": null,
+
+        "payment": {
+          "paid": true,
+          "method": "UPI"
+        },
+
+        "source": {
+          "email_from": "credit_cards@icicibank.com",
+          "email_id": "19b682a1059bbac4"
+        },
+
+        "linkage": {
+          "last_statement_event_id": "ICICI_CC_7000_202511"
+        }
+      }
+    ]
+  },
+
+  "payments": {
+    "by_day": {
+      "28 Jan 2026": [
+        {
+          "payment_id": "event:1769570615792:TRADINGVIEW_pay",
+
+          "display": "TradingView Premium",
+
+          "provider": "TRADINGVIEW",
+
+          "amount": {
+            "value": 20364.91,
+            "currency": "INR"
+          },
+
+          "dates": {
+            "paid_at": "28 Jan 2026",
+            "email_received_at": null,
+            "extracted_at": "28 Jan 2026, 02:23 pm"
+          },
+
+          "account": {
+            "type": "DIGITAL_SERVICE",
+            "identifier": "TradingView",
+            "customer_number": null
+          },
+
+          "source": {
+            "email_from": null,
+            "email_id": null
+          }
+        }
+      ],
+
+      "07 Jan 2026": [
+        {
+          "payment_id": "event:1769447093440:PAYTM",
+
+          "display": "Delhi Jal Board",
+
+          "provider": "PAYTM",
+
+          "amount": {
+            "value": 594,
+            "currency": "INR"
+          },
+
+          "dates": {
+            "paid_at": "07 Jan 2026",
+            "email_received_at": null,
+            "extracted_at": "07 Jan 2026, 09:02 am"
+          },
+
+          "account": {
+            "type": "UTILITY",
+            "identifier": "Delhi Jal Board",
+            "customer_number": null
+          },
+
+          "source": {
+            "email_from": null,
+            "email_id": null
+          }
+        }
+      ]
+    }
   }
-
-  /* ---- sort cards (new → old) ---- */
-  const sortDesc = (a, b, field) =>
-    new Date(b[field] || 0) - new Date(a[field] || 0);
-
-  view.cards.overdue.sort((a, b) => sortDesc(a, b, "due_date"));
-  view.cards.due.sort((a, b) => sortDesc(a, b, "due_date"));
-  view.cards.paid.sort((a, b) => sortDesc(a, b, "paid_at"));
-
-  /* =====================
-     PAYMENTS → VIEW + RULES
-  ===================== */
-  for (const p of unified.entities.payments) {
-    const day = p.timestamps.paid_at;
-    if (!day) continue;
-
-    if (!view.payments[day]) view.payments[day] = [];
-
-    const rawPayment = {
-      display:
-        p.account?.identifier ||
-        p.account?.display_name ||
-        p.provider,
-
-      amount: p.amount.value,
-      paid_at: p.timestamps.paid_at,
-
-      method: p.provider,
-      customer_number: p.account?.ca_number || null,
-    };
-
-    view.payments[day].push(applyPaymentRules(rawPayment));
-  }
-
-  /* ---- sort payment days + items ---- */
-  const sortedPayments = {};
-  Object.keys(view.payments)
-    .sort((a, b) => new Date(b) - new Date(a))
-    .forEach(day => {
-      sortedPayments[day] = view.payments[day].sort(
-        (a, b) => new Date(b.paid_at) - new Date(a.paid_at)
-      );
-    });
-
-  view.payments = sortedPayments;
-
-  /* =====================
-     RESPONSE
-  ===================== */
-  return new Response(JSON.stringify(view, null, 2), {
-    headers: {
-      "Content-Type": "application/json",
-      "Cache-Control": "no-store",
-    },
-  });
 }
