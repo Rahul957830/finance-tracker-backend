@@ -66,6 +66,85 @@ export async function GET(request) {
       generated_at: fmtDateTime(unified.meta.generated_at),
     },
 
+rules_legend: {
+  urgency: {
+    high: "Immediate attention required. Used for overdue card bills.",
+    medium: "Action needed soon. Used for upcoming or due-today card bills.",
+    low: "Informational only. No immediate action required."
+  },
+
+  visibility: {
+    always:
+      "Item is always shown. Used for overdue and due card bills.",
+    visible:
+      "Item is shown by default. Used for recently paid cards or payments (within 30 days).",
+    expired:
+      "Item is older than 30 days. Still included in data but marked as expired for UI handling."
+  },
+
+  needs_action: {
+    true:
+      "User action is required, such as making a payment or reviewing a bill.",
+    false:
+      "No user action required. Item is informational."
+  },
+
+  card_rules: {
+    OVERDUE: {
+      urgency: "high",
+      needs_action: true,
+      visibility: "always",
+      status_label_examples: [
+        "Overdue today",
+        "Overdue by 3 days"
+      ],
+      description:
+        "Credit card bill has passed its due date. Always shown until resolved."
+    },
+
+    DUE: {
+      urgency: "medium",
+      needs_action: true,
+      visibility: "always",
+      status_label_examples: [
+        "Due today",
+        "Due tomorrow",
+        "Due in 5 days"
+      ],
+      description:
+        "Credit card bill is due soon or today. User should pay before due date."
+    },
+
+    PAID: {
+      urgency: "low",
+      needs_action: false,
+      visibility:
+        "visible for 30 days after payment, then marked as expired",
+      status_label: "Paid",
+      description:
+        "Credit card bill has been paid. Shown for recent history and reference."
+    }
+  },
+
+  payment_rules: {
+    PAID: {
+      urgency: "low",
+      visibility:
+        "visible for 30 days after payment, then marked as expired",
+      description:
+        "Successful non-card payment (subscriptions, services, utilities). Used for transaction history."
+    }
+  },
+
+  notes: [
+    "Rules are computed in code, not inferred by the UI.",
+    "Expired items are NOT removed from the view JSON.",
+    "UI decides whether to dim, collapse, or hide expired items.",
+    "View JSON reshapes data but does not alter rule logic."
+  ]
+}
+  
+
     summary: {
       cards: { overdue: 0, due: 0, paid: 0 },
       payments: 0,
