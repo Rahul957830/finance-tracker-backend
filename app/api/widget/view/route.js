@@ -60,6 +60,10 @@ export async function GET(request) {
 
       paid_at: ts.paid_at || null,
       payment_method: state.payment_method || null,
+
+      extracted_at: card.timestamps.extracted_at ?? null,
+};
+       
     };
 
     if (state.current_status === "OVERDUE") {
