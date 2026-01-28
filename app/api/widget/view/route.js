@@ -258,21 +258,20 @@ export async function GET(request) {
   Object.keys(view.payments)
     .sort((a, b) => new Date(b) - new Date(a))
     .forEach((day) => {
-      const visible = view.payments[day].items
-        .filter(i => i.rules.visibility === "visible")
-        .sort((a, b) => new Date(b.__sort) - new Date(a.__sort))
-        .map(i => {
-          delete i.__sort;
-          return i;
-        });
+      const items = view.payments[day].items
+  .sort((a, b) => new Date(b.__sort) - new Date(a.__sort))
+  .map(i => {
+    delete i.__sort; // internal only
+    return i;
+  });
 
-      if (visible.length) {
-        sortedPayments[day] = {
-          date: day,
-          label: view.payments[day].label,
-          items: visible,
-        };
-      }
+if (items.length) {
+  sortedPayments[day] = {
+    date: day,
+    label: view.payments[day].label,
+    items, // ✅ includes visible + expired
+  };
+}
     });
 
   view.payments = sortedPayments;
