@@ -119,8 +119,10 @@ export async function GET(request) {
   message: payment.notification?.message ?? null,
        
   /* timestamps */
-  extracted_at: payment.timestamps?.extracted_at ?? null,
-
+ extracted_at:
+  payment.timestamps?.extracted_at ??
+  payment.source?.extracted_at ??
+  null,
     });
   }
 
