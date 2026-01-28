@@ -307,6 +307,21 @@ view.summary.payments_visibility = {
   visible: allPayments.filter(p => p.rules.visibility === "visible").length,
   expired: allPayments.filter(p => p.rules.visibility === "expired").length,
 };
+   
+/* =========================
+   FINAL SUMMARY SHAPE (ORDER)
+========================= */
+
+view.summary = {
+  cards: view.summary.cards,
+  cards_visibility: view.summary.cards_visibility,
+  payments: view.summary.payments,
+  payments_visibility: view.summary.payments_visibility,
+};
+
+
+
+   
 
 
   /* =========================
