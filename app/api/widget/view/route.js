@@ -1,47 +1,27 @@
 export const dynamic = "force-dynamic";
 
-/* =====================
-   HELPERS
-===================== */
-
-function formatStatementMonth(yyyymm) {
-  if (!yyyymm) return null;
-  const year = yyyymm.slice(0, 4);
-  const month = yyyymm.slice(4, 6);
-  const date = new Date(`${year}-${month}-01`);
-  return (
-    date.toLocaleString("en-IN", { month: "short" }) +
-    "'" +
-    year.slice(2)
-  );
-}
-
-function buildCardLabel(card) {
-  const p = card.state?.provider || "Card";
-  const l4 = card.state?.last4 || "";
-  const m = formatStatementMonth(card.state?.statement_month);
-  return `${p} CC ${l4} ${m || ""}`.trim();
-}
-
-/* =====================
-   VIEW ROUTE
-===================== */
-
 export async function GET(request) {
   const baseUrl = new URL(request.url).origin;
 
-  /* =====================
+  /* =========================
      LOAD UNIFIED JSON
-  ===================== */
-  const unifiedRes = await fetch(`${baseUrl}/api/widget/unified`, {
+  ========================= */
+  const res = await fetch(`${baseUrl}/api/widget/unified`, {
     cache: "no-store",
   });
 
-  const unified = await unifiedRes.json();
+  if (!res.ok) {
+    return new Response(
+      JSON.stringify({ error: "Failed to load unified data" }),
+      { status: 500 }
+    );
+  }
 
-  /* =====================
+  const unified = await res.json();
+
+  /* =========================
      BASE VIEW SHAPE
-  ===================== */
+  ========================= */
   const view = {
     meta: {
       generated_at: unified.meta.generated_at,
@@ -54,85 +34,103 @@ export async function GET(request) {
       paid: [],
     },
 
-    payments: {}, // grouped by paid_at date
+    payments: {},
   };
 
-  /* =====================
+  /* =========================
      CARDS → VIEW
-     (KV truth, no interpretation)
-  ===================== */
-  for (const card of unified.entities.cards || []) {
-    const item = {
-      card_id: card.id,
-      status: card.state.current_status,
+     (KV state is authoritative)
+  ========================= */
+  const cardById = {};
+  for (const card of unified.entities.cards) {
+    cardById[card.id] = card;
+  }
 
-      display: buildCardLabel(card),
+  const statusIndex = unified.indexes.cards.by_status;
+
+  function projectCard(card) {
+    return {
+      id: card.id,
+
+      display: `${card.state.provider} CC ${card.state.last4} ${card.state.statement_month || ""}`.trim(),
 
       provider: card.state.provider,
       last4: card.state.last4,
-      statement_month: formatStatementMonth(
-        card.state.statement_month
-      ),
+      statement_month: card.state.statement_month,
 
       amount_due: card.state.amount_due,
       due_date: card.state.due_date,
       days_left: card.state.days_left,
 
+      current_status: card.state.current_status,
       paid: card.state.paid,
-      paid_at: card.timestamps.paid_at,
-      payment_method: card.state.payment_method || null,
+      payment_method: card.state.payment_method,
 
-      email_from: card.email?.email_from || null,
-      email_at: card.timestamps.email_at,
-      extracted_at: card.timestamps.extracted_at,
-      updated_at: card.timestamps.updated_at,
+      timestamps: card.timestamps,
+      email: card.email,
+      linkage: card.linkage,
+      event: card.event,
     };
-
-    if (item.status === "OVERDUE") view.cards.overdue.push(item);
-    else if (item.status === "DUE" || item.status === "OPEN")
-      view.cards.due.push(item);
-    else if (item.status === "PAID") view.cards.paid.push(item);
   }
 
-  /* ---- sort cards ---- */
-  const sortDesc = (a, b, field) =>
-    new Date(b[field] || 0) - new Date(a[field] || 0);
+  for (const id of statusIndex.overdue || []) {
+    const card = cardById[id];
+    if (card) view.cards.overdue.push(projectCard(card));
+  }
 
-  view.cards.overdue.sort((a, b) => sortDesc(a, b, "due_date"));
-  view.cards.due.sort((a, b) => sortDesc(a, b, "due_date"));
-  view.cards.paid.sort((a, b) => sortDesc(a, b, "paid_at"));
+  for (const id of statusIndex.due || []) {
+    const card = cardById[id];
+    if (card) view.cards.due.push(projectCard(card));
+  }
 
-  /* =====================
+  for (const id of statusIndex.paid || []) {
+    const card = cardById[id];
+    if (card) view.cards.paid.push(projectCard(card));
+  }
+
+  /* =========================
      PAYMENTS → VIEW
-     (non-card canonical events)
-  ===================== */
-  for (const p of unified.entities.payments || []) {
-    const day = p.paid_at;
-    if (!day) continue;
+     (non-credit-card canonical events)
+  ========================= */
+  for (const payment of unified.entities.payments) {
+    const paidAt =
+      payment.dates?.paid_at ||
+      payment.created_at ||
+      payment.timestamp ||
+      null;
 
-    if (!view.payments[day]) view.payments[day] = [];
+    if (!paidAt) continue;
 
-    view.payments[day].push({
-      payment_id: p.id,
+    const dayKey = String(paidAt).slice(0, 10); // YYYY-MM-DD
+
+    if (!view.payments[dayKey]) {
+      view.payments[dayKey] = [];
+    }
+
+    view.payments[dayKey].push({
+      id: payment.event_id,
 
       display:
-        p.account?.display_name ||
-        p.account?.identifier ||
-        p.provider,
+        payment.account?.display_name ||
+        payment.account?.identifier ||
+        payment.provider,
 
-      provider: p.provider,
-      amount: p.amount,
-      currency: p.currency || "INR",
+      provider: payment.provider,
 
-      paid_at: p.paid_at,
+      amount: payment.amount?.value ?? null,
+      currency: payment.amount?.currency ?? "INR",
 
-      account_type: p.account?.type || null,
-      identifier: p.account?.identifier || null,
-      customer_number: p.account?.ca_number || null,
+      paid_at: paidAt,
+
+      account: payment.account || null,
+
+      event: payment, // full canonical preserved
     });
   }
 
-  /* ---- sort payments (new → old) ---- */
+  /* =========================
+     SORT PAYMENTS (new → old)
+  ========================= */
   const sortedPayments = {};
   Object.keys(view.payments)
     .sort((a, b) => new Date(b) - new Date(a))
@@ -144,9 +142,9 @@ export async function GET(request) {
 
   view.payments = sortedPayments;
 
-  /* =====================
+  /* =========================
      RESPONSE
-  ===================== */
+  ========================= */
   return new Response(JSON.stringify(view, null, 2), {
     headers: {
       "Content-Type": "application/json",
