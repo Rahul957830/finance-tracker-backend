@@ -62,7 +62,6 @@ export async function GET(request) {
       payment_method: state.payment_method || null,
 
       extracted_at: card.timestamps.extracted_at ?? null,
-};
        
     };
 
