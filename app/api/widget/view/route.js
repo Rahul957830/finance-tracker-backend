@@ -24,6 +24,15 @@ export async function GET(request) {
   const view = {
     meta: unified.meta,
 
+    summary: {
+      cards: {
+        overdue: 0,
+        due: 0,
+        paid: 0,
+      },
+      payments: 0,
+    },
+
     cards: {
       overdue: [],
       due: [],
@@ -50,9 +59,10 @@ export async function GET(request) {
       visibility = "always";
 
       const d = Math.abs(days ?? 0);
-      status_label = d === 0
-        ? "Overdue today"
-        : `Overdue by ${d} day${d === 1 ? "" : "s"}`;
+      status_label =
+        d === 0
+          ? "Overdue today"
+          : `Overdue by ${d} day${d === 1 ? "" : "s"}`;
     }
 
     if (item.current_status === "DUE") {
@@ -116,9 +126,13 @@ export async function GET(request) {
       payment_method: state.payment_method || null,
 
       extracted_at: ts.extracted_at || null,
+
+      sort_key:
+        state.current_status === "PAID"
+          ? ts.paid_at
+          : state.due_date,
     };
 
-    /* ---- apply rules ---- */
     item.rules = applyCardRules(item);
 
     if (item.current_status === "OVERDUE") {
@@ -130,13 +144,13 @@ export async function GET(request) {
     }
   }
 
-  /* ---- sort cards ---- */
-  const sortDesc = (a, b, field) =>
-    new Date(b[field] || 0) - new Date(a[field] || 0);
+  /* ---- sort cards (new → old) ---- */
+  const sortDesc = (a, b) =>
+    new Date(b.sort_key || 0) - new Date(a.sort_key || 0);
 
-  view.cards.overdue.sort((a, b) => sortDesc(a, b, "due_date"));
-  view.cards.due.sort((a, b) => sortDesc(a, b, "due_date"));
-  view.cards.paid.sort((a, b) => sortDesc(a, b, "paid_at"));
+  view.cards.overdue.sort(sortDesc);
+  view.cards.due.sort(sortDesc);
+  view.cards.paid.sort(sortDesc);
 
   /* =========================
      PAYMENT RULES (INLINE)
@@ -170,7 +184,13 @@ export async function GET(request) {
     if (!paidAt) continue;
 
     const day = String(paidAt).slice(0, 10);
-    if (!view.payments[day]) view.payments[day] = [];
+
+    if (!view.payments[day]) {
+      view.payments[day] = {
+        date: day,
+        items: [],
+      };
+    }
 
     const item = {
       event_id: payment.event_id,
@@ -195,10 +215,8 @@ export async function GET(request) {
         null,
     };
 
-    /* ---- apply rules ---- */
     item.rules = applyPaymentRules(item);
-
-    view.payments[day].push(item);
+    view.payments[day].items.push(item);
   }
 
   /* ---- sort payment days + items (new → old) ---- */
@@ -206,12 +224,31 @@ export async function GET(request) {
   Object.keys(view.payments)
     .sort((a, b) => new Date(b) - new Date(a))
     .forEach(day => {
-      sortedPayments[day] = view.payments[day].sort(
-        (a, b) => new Date(b.paid_at) - new Date(a.paid_at)
-      );
+      const visibleItems = view.payments[day].items
+        .filter(p => p.rules.visibility === "visible")
+        .sort((a, b) => new Date(b.paid_at) - new Date(a.paid_at));
+
+      if (visibleItems.length) {
+        sortedPayments[day] = {
+          date: day,
+          items: visibleItems,
+        };
+      }
     });
 
   view.payments = sortedPayments;
+
+  /* =========================
+     SUMMARY COUNTS
+  ========================= */
+  view.summary.cards.overdue = view.cards.overdue.length;
+  view.summary.cards.due = view.cards.due.length;
+  view.summary.cards.paid = view.cards.paid.length;
+
+  view.summary.payments = Object.values(view.payments).reduce(
+    (sum, d) => sum + d.items.length,
+    0
+  );
 
   /* =========================
      RESPONSE
