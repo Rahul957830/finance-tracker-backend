@@ -1,5 +1,10 @@
 export const dynamic = "force-dynamic";
 
+/* =========================
+   VIEW JSON
+   (RESHAPE ONLY)
+========================= */
+
 export async function GET(request) {
   const baseUrl = new URL(request.url).origin;
 
@@ -9,24 +14,13 @@ export async function GET(request) {
   const res = await fetch(`${baseUrl}/api/widget/unified`, {
     cache: "no-store",
   });
-
-  if (!res.ok) {
-    return new Response(
-      JSON.stringify({ error: "Failed to load unified data" }),
-      { status: 500 }
-    );
-  }
-
   const unified = await res.json();
 
   /* =========================
      BASE VIEW SHAPE
   ========================= */
   const view = {
-    meta: {
-      generated_at: unified.meta.generated_at,
-      timezone: unified.meta.timezone,
-    },
+    meta: unified.meta,
 
     cards: {
       overdue: [],
@@ -39,58 +33,55 @@ export async function GET(request) {
 
   /* =========================
      CARDS → VIEW
-     (KV state is authoritative)
+     (ONLY FIELDS FROM SHEET)
   ========================= */
-  const cardById = {};
   for (const card of unified.entities.cards) {
-    cardById[card.id] = card;
-  }
+    const state = card.state || {};
+    const ts = card.timestamps || {};
+    const email = card.email || {};
+    const event = card.event || {};
 
-  const statusIndex = unified.indexes.cards.by_status;
+    const item = {
+      event_id: event.event_id || null,
+      source_id: event.source_id || null,
+      current_status: state.current_status || null,
 
-  function projectCard(card) {
-    return {
-      id: card.id,
+      provider: state.provider || null,
+      last4: state.last4 || null,
+      identifier: state.last4 || null,
 
-      display: `${card.state.provider} CC ${card.state.last4} ${card.state.statement_month || ""}`.trim(),
+      statement_month: state.statement_month || null,
+      amount_due: state.amount_due ?? null,
+      due_date: state.due_date || null,
+      days_left: state.days_left ?? null,
 
-      provider: card.state.provider,
-      last4: card.state.last4,
-      statement_month: card.state.statement_month,
+      email_at: ts.email_at || null,
+      email_from: email.email_from || null,
 
-      amount_due: card.state.amount_due,
-      due_date: card.state.due_date,
-      days_left: card.state.days_left,
-
-      current_status: card.state.current_status,
-      paid: card.state.paid,
-      payment_method: card.state.payment_method,
-
-      timestamps: card.timestamps,
-      email: card.email,
-      linkage: card.linkage,
-      event: card.event,
+      paid_at: ts.paid_at || null,
+      payment_method: state.payment_method || null,
     };
+
+    if (state.current_status === "OVERDUE") {
+      view.cards.overdue.push(item);
+    } else if (state.current_status === "DUE") {
+      view.cards.due.push(item);
+    } else if (state.current_status === "PAID") {
+      view.cards.paid.push(item);
+    }
   }
 
-  for (const id of statusIndex.overdue || []) {
-    const card = cardById[id];
-    if (card) view.cards.overdue.push(projectCard(card));
-  }
+  /* ---- sort cards (new → old) ---- */
+  const sortByDateDesc = (a, b, field) =>
+    new Date(b[field] || 0) - new Date(a[field] || 0);
 
-  for (const id of statusIndex.due || []) {
-    const card = cardById[id];
-    if (card) view.cards.due.push(projectCard(card));
-  }
-
-  for (const id of statusIndex.paid || []) {
-    const card = cardById[id];
-    if (card) view.cards.paid.push(projectCard(card));
-  }
+  view.cards.overdue.sort((a, b) => sortByDateDesc(a, b, "due_date"));
+  view.cards.due.sort((a, b) => sortByDateDesc(a, b, "due_date"));
+  view.cards.paid.sort((a, b) => sortByDateDesc(a, b, "paid_at"));
 
   /* =========================
      PAYMENTS → VIEW
-     (non-credit-card canonical events)
+     (ONLY FIELDS FROM SHEET)
   ========================= */
   for (const payment of unified.entities.payments) {
     const paidAt =
@@ -101,36 +92,28 @@ export async function GET(request) {
 
     if (!paidAt) continue;
 
-    const dayKey = String(paidAt).slice(0, 10); // YYYY-MM-DD
+    const day = String(paidAt).slice(0, 10);
 
-    if (!view.payments[dayKey]) {
-      view.payments[dayKey] = [];
-    }
+    if (!view.payments[day]) view.payments[day] = [];
 
-    view.payments[dayKey].push({
-      id: payment.event_id,
+    view.payments[day].push({
+      event_id: payment.event_id || null,
+      event_type: payment.event_type || null,
+      source_id: payment.source_id || null,
 
-      display:
-        payment.account?.display_name ||
-        payment.account?.identifier ||
-        payment.provider,
+      provider: payment.provider || null,
+      identifier: payment.account?.identifier || null,
+      ca_number: payment.account?.ca_number || null,
 
-      provider: payment.provider,
-
-      amount: payment.amount?.value ?? null,
-      currency: payment.amount?.currency ?? "INR",
-
+      value: payment.amount?.value ?? null,
       paid_at: paidAt,
 
-      account: payment.account || null,
-
-      event: payment, // full canonical preserved
+      payment_status: payment.status?.payment_status || null,
+      email_from: payment.source?.email_from || null,
     });
   }
 
-  /* =========================
-     SORT PAYMENTS (new → old)
-  ========================= */
+  /* ---- sort payment days + items (new → old) ---- */
   const sortedPayments = {};
   Object.keys(view.payments)
     .sort((a, b) => new Date(b) - new Date(a))
