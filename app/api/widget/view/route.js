@@ -110,6 +110,12 @@ export async function GET(request) {
 
       payment_status: payment.status?.payment_status || null,
       email_from: payment.source?.email_from || null,
+      display_name: payment.account?.display_name ?? null,
+     message: payment.notification?.message ?? null,
+     extracted_at: payment.timestamps?.extracted_at ?? null,
+});
+
+       
     });
   }
 
