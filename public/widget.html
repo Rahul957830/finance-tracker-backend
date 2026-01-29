@@ -16,7 +16,7 @@ html, body {
   color: #eaeaea;
 }
 
-/* ===== SAFE ZONE (MATCHES REACTOR) ===== */
+/* ===== SAFE ZONE ===== */
 .safe-zone {
   position: absolute;
   inset: 0;
@@ -24,7 +24,7 @@ html, body {
   background: rgba(16,16,16,0.96);
 }
 
-/* ===== CONTENT PADDING ===== */
+/* ===== CONTENT ===== */
 #content {
   padding: 18px 16px;
   box-sizing: border-box;
@@ -116,6 +116,7 @@ function el(tag, cls, txt) {
   return e;
 }
 
+/* ===== HELPERS ===== */
 function formatDate(d) {
   if (!d) return "";
   return new Date(d).toLocaleDateString("en-GB", {
@@ -125,6 +126,23 @@ function formatDate(d) {
   });
 }
 
+function formatAmount(v) {
+  if (v === null || v === undefined || v === "" || v === "XXXX") {
+    return "XXXX";
+  }
+  return `₹${v}`;
+}
+
+function paymentIcon(method = "") {
+  const m = method.toLowerCase();
+  if (m.includes("gpay")) return "🟢";
+  if (m.includes("paytm")) return "🔵";
+  if (m.includes("upi")) return "💠";
+  if (m.includes("card")) return "💳";
+  return "";
+}
+
+/* ===== RENDER ===== */
 function render(view) {
   const root = document.getElementById("content");
   const cards = view.cards;
@@ -145,8 +163,14 @@ function render(view) {
 
       if (cls === "paid") {
         const paidAt = formatDate(i.paid_at);
-        const method = i.payment_method || "";
-        subText = paidAt && method ? `${paidAt} | ${method}` : paidAt || method;
+        const method = i.payment_method;
+        const icon = method ? paymentIcon(method) : "";
+
+        subText = paidAt
+          ? method
+            ? `${paidAt} | ${icon} ${method}`
+            : paidAt
+          : "";
       } else {
         const status = i.rules.status_label || "";
         const dueDate = formatDate(i.due_date);
@@ -158,7 +182,7 @@ function render(view) {
       const right = el(
         "div",
         "item-right",
-        i.amount_due ? `₹${i.amount_due}` : ""
+        formatAmount(i.amount_due)
       );
 
       row.append(left, right);
@@ -190,9 +214,17 @@ function render(view) {
       payments[day].items.forEach(p => {
         const row = el("div", "item paid");
         const left = el("div", "item-left");
+
         left.appendChild(el("div", "item-title", `${p.provider || "Payment"}`));
-        left.appendChild(el("div", "item-sub", p.display_name || p.identifier || ""));
-        const right = el("div", "item-right", p.value ? `₹${p.value}` : "");
+
+        const method = p.payment_method;
+        const icon = method ? paymentIcon(method) : "";
+        const sub = method ? `${icon} ${method}` : "";
+
+        left.appendChild(el("div", "item-sub", sub));
+
+        const right = el("div", "item-right", formatAmount(p.value));
+
         row.append(left, right);
         group.appendChild(row);
       });
