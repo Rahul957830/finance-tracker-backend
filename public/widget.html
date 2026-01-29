@@ -44,9 +44,10 @@ html, body {
 
 /* 🔑 REAL SCROLL CONTAINER */
 .section-scroll {
-  height: 160px;          /* 🔑 FORCE overflow */
+  height: 160px;
   overflow-y: auto;
   scrollbar-width: none;
+  user-select: none;          /* 🔑 stop text selection jitter */
 }
 .section-scroll::-webkit-scrollbar {
   display: none;
@@ -126,12 +127,14 @@ function el(tag, cls, txt) {
   return e;
 }
 
-/* ✅ PROPER AUTO SCROLL (scrollTop based) */
+/* ✅ STABLE AUTO SCROLL ENGINE */
 function enableAutoScroll(box) {
   let paused = false;
   let dragging = false;
   let startY = 0;
   let startScroll = 0;
+
+  const canScroll = () => box.scrollHeight > box.clientHeight + 2;
 
   box.addEventListener("mouseenter", () => paused = true);
   box.addEventListener("mouseleave", () => paused = false);
@@ -150,18 +153,17 @@ function enableAutoScroll(box) {
   });
 
   window.addEventListener("mouseup", () => {
-    if (!dragging) return;
     dragging = false;
     paused = false;
     box.style.cursor = "default";
   });
 
   function loop() {
-    if (!paused && !dragging) {
-      if (box.scrollTop + box.clientHeight >= box.scrollHeight) {
+    if (!paused && !dragging && canScroll()) {
+      if (box.scrollTop + box.clientHeight >= box.scrollHeight - 1) {
         box.scrollTop = 0;
       } else {
-        box.scrollTop += 0.3;
+        box.scrollTop += 0.3;   // 🔑 smooth speed
       }
     }
     requestAnimationFrame(loop);
@@ -171,6 +173,8 @@ function enableAutoScroll(box) {
 
 function render(view) {
   const root = document.getElementById("content");
+  root.innerHTML = ""; // 🔑 prevent duplicate loops
+
   const cards = view.cards;
 
   function renderCardSection(title, items, cls) {
@@ -198,7 +202,11 @@ function render(view) {
 
   renderCardSection("OVERDUE", cards.overdue, "overdue");
   renderCardSection("DUE", cards.due, "due");
-  renderCardSection("PAID", cards.paid.filter(i => i.rules.visibility === "visible"), "paid");
+  renderCardSection(
+    "PAID",
+    cards.paid.filter(i => i.rules.visibility === "visible"),
+    "paid"
+  );
 
   const payments = view.payments;
   const days = Object.keys(payments);
