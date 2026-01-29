@@ -1,83 +1,111 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <title>Finance Rules Tester</title>
-  <style>
-    body {
-      margin: 0;
-      padding: 12px;
-      font-family: system-ui;
-      font-size: 13px;
-      background: transparent;
-      color: #e5e7eb;
-    }
+<meta charset="UTF-8" />
+<title>Finance Alerts</title>
 
-    h3 {
-      margin-top: 0;
-    }
+<style>
+html, body {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(16,16,16,0.98);
+  overflow: hidden;
+  font-family: Inter, system-ui, sans-serif;
+}
 
-    .section {
-      margin-bottom: 16px;
-    }
+.widget {
+  height: 100%;
+  padding: 16px;
+  box-sizing: border-box;
+  border-radius: 16px;
+}
 
-    .card {
-      background: #111827;
-      border-radius: 6px;
-      padding: 10px;
-      margin-bottom: 8px;
-    }
+.header {
+  font-size: 14px;
+  font-weight: 600;
+  color: rgba(235,235,235,0.95);
+}
 
-    .overdue { border-left: 4px solid #ef4444; }
-    .due { border-left: 4px solid #f59e0b; }
-    .paid { border-left: 4px solid #22c55e; }
+.sub {
+  font-size: 11px;
+  color: rgba(180,180,180,0.7);
+  margin-bottom: 12px;
+}
 
-    .label {
-      font-weight: 600;
-    }
+.section {
+  margin-top: 12px;
+}
 
-    .muted {
-      opacity: 0.7;
-    }
-  </style>
+.section-title {
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-bottom: 6px;
+  opacity: 0.85;
+}
+
+.item {
+  padding: 8px 10px;
+  border-radius: 10px;
+  margin-bottom: 6px;
+  font-size: 13px;
+}
+
+.high {
+  background: rgba(180,60,60,0.18);
+  color: rgba(255,220,220,0.95);
+}
+
+.medium {
+  background: rgba(180,120,60,0.18);
+  color: rgba(255,235,200,0.95);
+}
+
+.low {
+  background: rgba(120,140,130,0.14);
+  color: rgba(210,210,210,0.8);
+}
+
+.muted {
+  opacity: 0.45;
+}
+</style>
 </head>
+
 <body>
-  <h3>📌 Finance Rules Tester</h3>
-  <div id="app">Loading…</div>
+<div class="widget" id="app">
+  <div class="header">Finance Alerts</div>
+  <div class="sub">Auto-generated • IST</div>
+</div>
 
-  <script>
-    async function load() {
-      const res = await fetch("/api/widget/view");
-      const data = await res.json();
+<script>
+async function load() {
+  const res = await fetch("/api/widget/view");
+  const view = await res.json();
+  const app = document.getElementById("app");
 
-      const app = document.getElementById("app");
-      app.innerHTML = "";
+  function section(title, items, cls) {
+    if (!items.length) return;
+    const s = document.createElement("div");
+    s.className = "section";
+    s.innerHTML = `<div class="section-title">${title}</div>`;
+    items.forEach(i => {
+      const d = document.createElement("div");
+      d.className = `item ${cls} ${i.rules.visibility === "expired" ? "muted" : ""}`;
+      d.textContent = `${i.provider || ""} • ${i.status_label}`;
+      s.appendChild(d);
+    });
+    app.appendChild(s);
+  }
 
-      function renderCards(title, items, cls) {
-        if (!items.length) return;
-        const section = document.createElement("div");
-        section.className = "section";
-        section.innerHTML = `<h4>${title}</h4>`;
-        items.forEach(c => {
-          const div = document.createElement("div");
-          div.className = `card ${cls}`;
-          div.innerHTML = `
-            <div class="label">${c.display}</div>
-            <div>${c.rules.status_label}</div>
-            <div class="muted">Urgency: ${c.rules.urgency}</div>
-            <div>₹${c.amount_due}</div>
-          `;
-          section.appendChild(div);
-        });
-        app.appendChild(section);
-      }
+  section("Overdue", view.cards.overdue, "high");
+  section("Due", view.cards.due, "medium");
+  section("Paid", view.cards.paid.filter(i => i.rules.visibility === "visible"), "low");
+}
 
-      renderCards("Overdue", data.cards.overdue, "overdue");
-      renderCards("Due", data.cards.due, "due");
-      renderCards("Paid", data.cards.paid, "paid");
-    }
-
-    load();
-  </script>
+load();
+</script>
 </body>
 </html>
