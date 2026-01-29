@@ -217,12 +217,14 @@ function render(view) {
 
         left.appendChild(el("div", "item-title", `${p.provider || "Payment"}`));
 
-        const method = p.payment_method;
-        const icon = method ? paymentIcon(method) : "";
-        const sub = method ? `${icon} ${method}` : "";
+       const method = p.payment_method;
 
-        left.appendChild(el("div", "item-sub", sub));
-
+if (method && method !== "null") {
+  const icon = paymentIcon(method);
+  left.appendChild(
+    el("div", "item-sub", `${icon} ${method}`)
+  );
+}
         const right = el("div", "item-right", formatAmount(p.value));
 
         row.append(left, right);
