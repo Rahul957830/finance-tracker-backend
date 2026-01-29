@@ -28,17 +28,11 @@ html, body {
 #content {
   padding: 18px 16px;
   box-sizing: border-box;
-
-  height: 100%;
-  display: flex;
-  flex-direction: column;
 }
 
 /* ===== SECTIONS ===== */
 .section {
-  display: flex;
-  flex-direction: column;
-  min-height: 0; /* 🔑 critical for scroll */
+  margin-top: 14px;
 }
 
 .section-title {
@@ -48,17 +42,20 @@ html, body {
   margin-bottom: 6px;
 }
 
-/* 🔑 REAL SCROLL CONTAINER */
-.section-scroll {
-  flex: 1;              /* 🔑 take remaining height */
-  min-height: 0;       /* 🔑 allow scrolling */
-  overflow-y: auto;
-
-  scrollbar-width: none;
-  user-select: none;
+/* ===== FIXED VIEWPORT (4 tiles) ===== */
+.section-window {
+  height: 208px; /* 4 tiles × (48px + gap) approx */
+  overflow: hidden;
+  position: relative;
+  cursor: grab;
 }
-.section-scroll::-webkit-scrollbar {
-  display: none;
+
+/* ===== MOVING RAIL ===== */
+.section-rail {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
 }
 
 /* ===== ITEMS ===== */
@@ -103,16 +100,6 @@ html, body {
   font-size: 13px;
   font-weight: 500;
 }
-
-/* ===== PAYMENTS ===== */
-.payment-day {
-  margin-top: 10px;
-}
-.payment-label {
-  font-size: 11px;
-  opacity: 0.5;
-  margin-bottom: 6px;
-}
 </style>
 </head>
 
@@ -122,6 +109,9 @@ html, body {
 </div>
 
 <script>
+const MAX_VISIBLE = 4;
+const SPEED = 0.35;
+
 async function loadData() {
   const res = await fetch("/api/widget/view", { cache: "no-store" });
   const data = await res.json();
@@ -135,117 +125,92 @@ function el(tag, cls, txt) {
   return e;
 }
 
-/* ✅ STABLE AUTO SCROLL ENGINE */
-function enableAutoScroll(box) {
+/* ===== AUTO SCROLL ENGINE ===== */
+function enableLoopScroll(windowEl, railEl) {
+  let y = 0;
   let paused = false;
   let dragging = false;
   let startY = 0;
-  let startScroll = 0;
+  let startOffset = 0;
+  const halfHeight = railEl.scrollHeight / 2;
 
-  const canScroll = () => box.scrollHeight > box.clientHeight + 2;
+  windowEl.addEventListener("mouseenter", () => paused = true);
+  windowEl.addEventListener("mouseleave", () => paused = false);
 
-  box.addEventListener("mouseenter", () => paused = true);
-  box.addEventListener("mouseleave", () => paused = false);
-
-  box.addEventListener("mousedown", e => {
+  windowEl.addEventListener("mousedown", e => {
     dragging = true;
     paused = true;
     startY = e.clientY;
-    startScroll = box.scrollTop;
-    box.style.cursor = "grabbing";
+    startOffset = y;
+    windowEl.style.cursor = "grabbing";
   });
 
   window.addEventListener("mousemove", e => {
     if (!dragging) return;
-    box.scrollTop = startScroll - (e.clientY - startY);
+    y = startOffset + (e.clientY - startY);
   });
 
   window.addEventListener("mouseup", () => {
+    if (!dragging) return;
     dragging = false;
     paused = false;
-    box.style.cursor = "default";
+    windowEl.style.cursor = "grab";
   });
 
   function loop() {
-    if (!paused && !dragging && box.scrollHeight > box.clientHeight + 5) {
-      if (box.scrollTop + box.clientHeight >= box.scrollHeight - 1) {
-        box.scrollTop = 0;
-      } else {
-        box.scrollTop += 0.3;   // 🔑 smooth speed
-      }
+    if (!paused && !dragging) {
+      y -= SPEED;
+      if (-y >= halfHeight) y = 0;
     }
+    railEl.style.transform = `translateY(${y}px)`;
     requestAnimationFrame(loop);
   }
   loop();
 }
 
+/* ===== RENDER ===== */
 function render(view) {
   const root = document.getElementById("content");
-  root.innerHTML = ""; // 🔑 prevent duplicate loops
+  root.innerHTML = "";
 
-  const cards = view.cards;
-
-  function renderCardSection(title, items, cls) {
+  function renderSection(title, items, cls) {
     if (!items.length) return;
 
     const sec = el("div", "section");
     sec.appendChild(el("div", "section-title", title));
 
-    const scroll = el("div", "section-scroll");
+    const windowEl = el("div", "section-window");
+    const rail = el("div", "section-rail");
 
-    items.forEach(i => {
+    const slice = items.slice(0, MAX_VISIBLE);
+
+    [...slice, ...slice].forEach(i => {
       const row = el("div", `item ${cls}`);
       const left = el("div", "item-left");
       left.appendChild(el("div", "item-title", `${i.provider} • ${i.last4}`));
       left.appendChild(el("div", "item-sub", i.rules.status_label));
       const right = el("div", "item-right", i.amount_due ? `₹${i.amount_due}` : "");
       row.append(left, right);
-      scroll.appendChild(row);
+      rail.appendChild(row);
     });
 
-    sec.appendChild(scroll);
+    windowEl.appendChild(rail);
+    sec.appendChild(windowEl);
     root.appendChild(sec);
-    enableAutoScroll(scroll);
+
+    enableLoopScroll(windowEl, rail);
   }
 
-  renderCardSection("OVERDUE", cards.overdue, "overdue");
-  renderCardSection("DUE", cards.due, "due");
-  renderCardSection(
+  renderSection("OVERDUE", view.cards.overdue, "overdue");
+  renderSection("DUE", view.cards.due, "due");
+  renderSection(
     "PAID",
-    cards.paid.filter(i => i.rules.visibility === "visible"),
+    view.cards.paid.filter(i => i.rules.visibility === "visible"),
     "paid"
   );
 
-  const payments = view.payments;
-  const days = Object.keys(payments);
-
-  if (days.length) {
-    const sec = el("div", "section");
-    sec.appendChild(el("div", "section-title", "PAYMENTS"));
-
-    const scroll = el("div", "section-scroll");
-
-    days.forEach(day => {
-      const group = el("div", "payment-day");
-      group.appendChild(el("div", "payment-label", payments[day].label));
-
-      payments[day].items.forEach(p => {
-        const row = el("div", "item paid");
-        const left = el("div", "item-left");
-        left.appendChild(el("div", "item-title", `${p.provider || "Payment"}`));
-        left.appendChild(el("div", "item-sub", p.display_name || p.identifier || ""));
-        const right = el("div", "item-right", p.value ? `₹${p.value}` : "");
-        row.append(left, right);
-        group.appendChild(row);
-      });
-
-      scroll.appendChild(group);
-    });
-
-    sec.appendChild(scroll);
-    root.appendChild(sec);
-    enableAutoScroll(scroll);
-  }
+  const paymentsFlat = Object.values(view.payments).flatMap(d => d.items);
+  renderSection("PAYMENTS", paymentsFlat, "paid");
 }
 
 loadData();
