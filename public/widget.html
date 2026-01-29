@@ -119,45 +119,6 @@ function el(tag, cls, txt) {
   if (txt) e.textContent = txt;  
   return e;  
 }  
-
-function formatDate(d) {
-  if (!d) return "";
-  return new Date(d).toLocaleDateString("en-GB", {
-    day: "2-digit",
-    month: "short",
-    year: "numeric"
-  });
-}
-
-function paymentSVG(method = "") {
-  const m = method.toLowerCase();
-
-  if (m.includes("gpay")) {
-    return `
-      <svg width="12" height="12" viewBox="0 0 48 48" style="vertical-align:-2px">
-        <path fill="#4285F4" d="M24 9.5c3.2 0 5.4 1.4 6.6 2.6l4.5-4.5C32.2 5 28.5 3.5 24 3.5"/>
-        <path fill="#34A853" d="M46.1 24.5c0-1.5-.1-2.6-.4-3.8H24v7.2h12.5"/>
-        <path fill="#FBBC05" d="M10.3 28.3c-.5-1.5-.8-3-.8-4.8"/>
-        <path fill="#EA4335" d="M24 44.5c6.5 0 12-2.1 16-5.7"/>
-      </svg> GPay
-    `;
-  }
-
-  if (m.includes("paytm")) {
-    return `
-      <svg width="32" height="12" viewBox="0 0 420 140" style="vertical-align:-2px">
-        <text x="0" y="100"
-          font-size="96"
-          font-family="Arial, Helvetica, sans-serif"
-          font-weight="700"
-          fill="#00BAF2">PAYTM</text>
-      </svg>
-    `;
-  }
-
-  return method;
-}
-  
   
 function render(view) {  
   const root = document.getElementById("content");  
@@ -171,17 +132,7 @@ function render(view) {
       const row = el("div", `item ${cls}`);  
       const left = el("div", "item-left");  
       left.appendChild(el("div", "item-title", `${i.provider} • ${i.last4}`));  
-     let sub = "";
-
-if (cls === "paid") {
-  const d = formatDate(i.paid_at);
-  const m = i.payment_method;
-  sub = m ? `${d} | ` : d;
-  left.appendChild(el("div", "item-sub"));
-  left.lastChild.innerHTML = m ? `${d} | ${paymentSVG(m)}` : d;
-} else {
-  left.appendChild(el("div", "item-sub", i.rules.status_label));
-}
+      left.appendChild(el("div", "item-sub", i.rules.status_label));  
       const right = el("div", "item-right", i.amount_due ? `₹${i.amount_due}` : "");  
       row.append(left, right);  
       sec.appendChild(row);  
