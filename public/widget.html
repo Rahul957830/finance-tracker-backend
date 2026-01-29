@@ -141,6 +141,25 @@ function formatDate(d) {
     year: "numeric"
   });
 }
+function formatINR(value) {
+  if (
+    value === null ||
+    value === undefined ||
+    value === "" ||
+    value === "XXXX"
+  ) {
+    return "XXXX";
+  }
+
+  const num = Number(value);
+  if (isNaN(num)) return "XXXX";
+
+  return num.toLocaleString("en-IN", {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 2
+  });
+}
+  
 function render(view) {
   const root = document.getElementById("content");
   const cards = view.cards;
@@ -179,7 +198,7 @@ if (cls === "paid") {
 }
 
 left.appendChild(el("div", "item-sub", subText));
-      const right = el("div", "item-right", formatAmount(i.amount_due));
+     const right = el("div", "item-right", `₹${formatINR(i.amount_due)}`);
       row.append(left, right);
       sec.appendChild(row);
     });
@@ -210,7 +229,7 @@ left.appendChild(el("div", "item-sub", subText));
         const left = el("div", "item-left");
         left.appendChild(el("div", "item-title", `${p.provider || "Payment"}`));
         left.appendChild(el("div", "item-sub", p.display_name || p.identifier || ""));
-        const right = el("div", "item-right", formatAmount(p.value));
+       const right = el("div", "item-right", `₹${formatINR(p.value)}`);
         row.append(left, right);
         group.appendChild(row);
       });
