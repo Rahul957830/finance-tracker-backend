@@ -28,11 +28,17 @@ html, body {
 #content {
   padding: 18px 16px;
   box-sizing: border-box;
+
+  height: 100%;
+  display: flex;
+  flex-direction: column;
 }
 
 /* ===== SECTIONS ===== */
 .section {
-  margin-top: 14px;
+  display: flex;
+  flex-direction: column;
+  min-height: 0; /* 🔑 critical for scroll */
 }
 
 .section-title {
@@ -44,10 +50,12 @@ html, body {
 
 /* 🔑 REAL SCROLL CONTAINER */
 .section-scroll {
-  height: 160px;
+  flex: 1;              /* 🔑 take remaining height */
+  min-height: 0;       /* 🔑 allow scrolling */
   overflow-y: auto;
+
   scrollbar-width: none;
-  user-select: none;          /* 🔑 stop text selection jitter */
+  user-select: none;
 }
 .section-scroll::-webkit-scrollbar {
   display: none;
@@ -159,7 +167,7 @@ function enableAutoScroll(box) {
   });
 
   function loop() {
-    if (!paused && !dragging && canScroll()) {
+    if (!paused && !dragging && box.scrollHeight > box.clientHeight + 5) {
       if (box.scrollTop + box.clientHeight >= box.scrollHeight - 1) {
         box.scrollTop = 0;
       } else {
