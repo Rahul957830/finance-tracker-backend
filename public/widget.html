@@ -126,7 +126,21 @@ function el(tag, cls, txt) {
   if (txt) e.textContent = txt;
   return e;
 }
+function formatAmount(v) {
+  if (v === null || v === undefined || v === "" || v === "XXXX") {
+    return "XXXX";
+  }
+  return `₹${v}`;
+}
 
+function formatDate(d) {
+  if (!d) return "";
+  return new Date(d).toLocaleDateString("en-GB", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric"
+  });
+}
 function render(view) {
   const root = document.getElementById("content");
   const cards = view.cards;
@@ -139,8 +153,33 @@ function render(view) {
       const row = el("div", `item ${cls}`);
       const left = el("div", "item-left");
       left.appendChild(el("div", "item-title", `${i.provider} • ${i.last4}`));
-      left.appendChild(el("div", "item-sub", i.rules.status_label));
-      const right = el("div", "item-right", i.amount_due ? `₹${i.amount_due}` : "");
+      let subText = "";
+
+if (cls === "paid") {
+  const paidAt = formatDate(i.paid_at);
+  const method = i.payment_method;
+
+  let icon = "";
+  if (method) {
+    const m = method.toLowerCase();
+    if (m.includes("gpay")) icon = "🟢";
+    else if (m.includes("paytm")) icon = "🔵";
+    else if (m.includes("cred")) icon = "🟣";
+  }
+
+  subText = paidAt
+    ? method
+      ? `${paidAt} | ${icon} ${method}`
+      : paidAt
+    : "";
+} else {
+  const status = i.rules.status_label || "";
+  const dueDate = formatDate(i.due_date);
+  subText = dueDate ? `${status} | ${dueDate}` : status;
+}
+
+left.appendChild(el("div", "item-sub", subText));
+      const right = el("div", "item-right", formatAmount(i.amount_due));
       row.append(left, right);
       sec.appendChild(row);
     });
@@ -171,7 +210,7 @@ function render(view) {
         const left = el("div", "item-left");
         left.appendChild(el("div", "item-title", `${p.provider || "Payment"}`));
         left.appendChild(el("div", "item-sub", p.display_name || p.identifier || ""));
-        const right = el("div", "item-right", p.value ? `₹${p.value}` : "");
+        const right = el("div", "item-right", formatAmount(p.value));
         row.append(left, right);
         group.appendChild(row);
       });
