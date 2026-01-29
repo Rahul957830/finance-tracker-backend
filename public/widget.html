@@ -10,18 +10,53 @@ html, body {
   padding: 0;
   width: 100%;
   height: 100%;
-  background: rgba(16,16,16,0.98);
+  background: transparent; /* ✅ allow Notion to show through */
   overflow: hidden;
   font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
   color: #eaeaea;
 }
 
-/* ===== SAFE ZONE ===== */
+/* ===== SAFE ZONE (NO SOLID FILL) ===== */
 .safe-zone {
   position: absolute;
   inset: 0;
   padding: 18px 16px;
   box-sizing: border-box;
+  overflow: hidden;
+}
+
+/* ===== SOFT DEPTH + BLEND (REACTOR STYLE) ===== */
+.safe-zone::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(
+      ellipse at center,
+      rgba(0,0,0,0.15) 0%,
+      rgba(0,0,0,0.22) 45%,
+      rgba(0,0,0,0.38) 100%
+    );
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* Ultra-faint inner panel edge */
+.safe-zone::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  box-shadow:
+    inset 0 0 0 1px rgba(255,255,255,0.03),
+    inset 0 0 24px rgba(0,0,0,0.45);
+  pointer-events: none;
+  z-index: 1;
+}
+
+/* Ensure content is above overlays */
+.safe-zone > * {
+  position: relative;
+  z-index: 2;
 }
 
 /* ===== HEADER ===== */
@@ -71,7 +106,7 @@ html, body {
 .item.overdue {
   background: linear-gradient(
     90deg,
-    rgba(180,60,60,0.25),
+    rgba(180,60,60,0.28),
     rgba(255,255,255,0.04)
   );
 }
@@ -79,7 +114,7 @@ html, body {
 .item.due {
   background: linear-gradient(
     90deg,
-    rgba(220,150,60,0.22),
+    rgba(220,150,60,0.24),
     rgba(255,255,255,0.04)
   );
 }
@@ -151,7 +186,6 @@ function el(tag, cls, txt) {
 function render(view) {
   const root = document.getElementById("content");
 
-  /* ===== CARDS ===== */
   const cards = view.cards;
 
   function renderCardSection(title, items, cls) {
@@ -174,9 +208,12 @@ function render(view) {
 
   renderCardSection("OVERDUE", cards.overdue, "overdue");
   renderCardSection("DUE", cards.due, "due");
-  renderCardSection("PAID", cards.paid.filter(i => i.rules.visibility === "visible"), "paid");
+  renderCardSection(
+    "PAID",
+    cards.paid.filter(i => i.rules.visibility === "visible"),
+    "paid"
+  );
 
-  /* ===== PAYMENTS ===== */
   const payments = view.payments;
   const days = Object.keys(payments);
 
