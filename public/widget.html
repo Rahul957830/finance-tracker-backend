@@ -10,13 +10,13 @@ html, body {
   padding: 0;
   width: 100%;
   height: 100%;
-  background: transparent; /* ✅ allow Notion to show through */
+  background: transparent;
   overflow: hidden;
   font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
   color: #eaeaea;
 }
 
-/* ===== SAFE ZONE (NO SOLID FILL) ===== */
+/* ===== SAFE ZONE ===== */
 .safe-zone {
   position: absolute;
   inset: 0;
@@ -24,27 +24,26 @@ html, body {
   box-sizing: border-box;
   overflow: hidden;
 
-  /* 🔑 dark anchor to kill white iframe bleed */
+  /* ✅ FIX: dark base like Reactor */
   background: rgba(16,16,16,0.55);
 }
 
-/* ===== SOFT DEPTH + BLEND (REACTOR STYLE) ===== */
+/* ===== SOFT DEPTH + BLEND ===== */
 .safe-zone::before {
   content: "";
   position: absolute;
   inset: 0;
-  background:
-    radial-gradient(
-      ellipse at center,
-      rgba(0,0,0,0.15) 0%,
-      rgba(0,0,0,0.22) 45%,
-      rgba(0,0,0,0.38) 100%
-    );
+  background: radial-gradient(
+    ellipse at center,
+    rgba(0,0,0,0.15) 0%,
+    rgba(0,0,0,0.22) 45%,
+    rgba(0,0,0,0.38) 100%
+  );
   pointer-events: none;
   z-index: 0;
 }
 
-/* Ultra-faint inner panel edge */
+/* Ultra-faint inner edge */
 .safe-zone::after {
   content: "";
   position: absolute;
@@ -56,7 +55,6 @@ html, body {
   z-index: 1;
 }
 
-/* Ensure content is above overlays */
 .safe-zone > * {
   position: relative;
   z-index: 2;
@@ -66,13 +64,11 @@ html, body {
 .header {
   margin-bottom: 14px;
 }
-
 .header h1 {
   font-size: 16px;
   font-weight: 600;
   margin: 0;
 }
-
 .header span {
   font-size: 11px;
   opacity: 0.6;
@@ -82,7 +78,6 @@ html, body {
 .section {
   margin-top: 14px;
 }
-
 .section-title {
   font-size: 11px;
   letter-spacing: 0.08em;
@@ -90,7 +85,7 @@ html, body {
   margin-bottom: 6px;
 }
 
-/* ===== CARD ITEM ===== */
+/* ===== ITEMS ===== */
 .item {
   display: flex;
   justify-content: space-between;
@@ -98,30 +93,18 @@ html, body {
   padding: 10px 12px;
   border-radius: 12px;
   margin-bottom: 8px;
-
   background: rgba(255,255,255,0.04);
   box-shadow:
     inset 0 0 0 1px rgba(255,255,255,0.03),
     inset 0 0 18px rgba(0,0,0,0.5);
 }
 
-/* Status tints */
 .item.overdue {
-  background: linear-gradient(
-    90deg,
-    rgba(180,60,60,0.28),
-    rgba(255,255,255,0.04)
-  );
+  background: linear-gradient(90deg, rgba(180,60,60,0.28), rgba(255,255,255,0.04));
 }
-
 .item.due {
-  background: linear-gradient(
-    90deg,
-    rgba(220,150,60,0.24),
-    rgba(255,255,255,0.04)
-  );
+  background: linear-gradient(90deg, rgba(220,150,60,0.24), rgba(255,255,255,0.04));
 }
-
 .item.paid {
   background: rgba(120,160,140,0.18);
 }
@@ -132,28 +115,23 @@ html, body {
   flex-direction: column;
   gap: 2px;
 }
-
 .item-title {
   font-size: 13px;
   font-weight: 500;
 }
-
 .item-sub {
   font-size: 11px;
   opacity: 0.7;
 }
-
 .item-right {
   font-size: 13px;
   font-weight: 500;
   opacity: 0.9;
 }
 
-/* ===== PAYMENT GROUP ===== */
 .payment-day {
   margin-top: 10px;
 }
-
 .payment-label {
   font-size: 11px;
   opacity: 0.5;
@@ -168,7 +146,6 @@ html, body {
     <h1>Finance Alerts</h1>
     <span>Auto-generated · IST</span>
   </div>
-
   <div id="content"></div>
 </div>
 
@@ -188,7 +165,6 @@ function el(tag, cls, txt) {
 
 function render(view) {
   const root = document.getElementById("content");
-
   const cards = view.cards;
 
   function renderCardSection(title, items, cls) {
@@ -200,9 +176,7 @@ function render(view) {
       const left = el("div", "item-left");
       left.appendChild(el("div", "item-title", `${i.provider} • ${i.last4}`));
       left.appendChild(el("div", "item-sub", i.rules.status_label));
-      const right = el("div", "item-right",
-        i.amount_due ? `₹${i.amount_due}` : ""
-      );
+      const right = el("div", "item-right", i.amount_due ? `₹${i.amount_due}` : "");
       row.append(left, right);
       sec.appendChild(row);
     });
@@ -211,11 +185,7 @@ function render(view) {
 
   renderCardSection("OVERDUE", cards.overdue, "overdue");
   renderCardSection("DUE", cards.due, "due");
-  renderCardSection(
-    "PAID",
-    cards.paid.filter(i => i.rules.visibility === "visible"),
-    "paid"
-  );
+  renderCardSection("PAID", cards.paid.filter(i => i.rules.visibility === "visible"), "paid");
 
   const payments = view.payments;
   const days = Object.keys(payments);
@@ -231,15 +201,9 @@ function render(view) {
       payments[day].items.forEach(p => {
         const row = el("div", "item paid");
         const left = el("div", "item-left");
-        left.appendChild(el("div", "item-title",
-          `${p.provider || "Payment"}`
-        ));
-        left.appendChild(el("div", "item-sub",
-          p.display_name || p.identifier || ""
-        ));
-        const right = el("div", "item-right",
-          p.value ? `₹${p.value}` : ""
-        );
+        left.appendChild(el("div", "item-title", `${p.provider || "Payment"}`));
+        left.appendChild(el("div", "item-sub", p.display_name || p.identifier || ""));
+        const right = el("div", "item-right", p.value ? `₹${p.value}` : "");
         row.append(left, right);
         group.appendChild(row);
       });
