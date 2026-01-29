@@ -16,15 +16,15 @@ html, body {
   color: #eaeaea;
 }
 
-/* ===== SAFE ZONE (MATCHES REACTOR) ===== */
+/* ===== SAFE ZONE ===== */
 .safe-zone {
   position: absolute;
   inset: 0;
-  overflow: hidden;
   background: rgba(16,16,16,0.96);
+  overflow: hidden;
 }
 
-/* ===== CONTENT PADDING ===== */
+/* ===== CONTENT ===== */
 #content {
   padding: 18px 16px;
   box-sizing: border-box;
@@ -34,6 +34,7 @@ html, body {
 .section {
   margin-top: 14px;
 }
+
 .section-title {
   font-size: 11px;
   letter-spacing: 0.08em;
@@ -41,12 +42,14 @@ html, body {
   margin-bottom: 6px;
 }
 
-/* ===== SCROLL CONTAINER (NEW) ===== */
+/* 🔑 REAL SCROLL CONTAINER */
 .section-scroll {
-  position: relative;
   max-height: 220px;
-  overflow: hidden;
-  cursor: grab;
+  overflow-y: auto;
+  scrollbar-width: none;
+}
+.section-scroll::-webkit-scrollbar {
+  display: none;
 }
 
 /* ===== ITEMS ===== */
@@ -57,7 +60,6 @@ html, body {
   padding: 10px 12px;
   border-radius: 12px;
   margin-bottom: 8px;
-
   background: rgba(255,255,255,0.04);
   box-shadow:
     inset 0 0 0 1px rgba(255,255,255,0.03),
@@ -65,18 +67,10 @@ html, body {
 }
 
 .item.overdue {
-  background: linear-gradient(
-    90deg,
-    rgba(180,60,60,0.28),
-    rgba(255,255,255,0.04)
-  );
+  background: linear-gradient(90deg, rgba(180,60,60,0.28), rgba(255,255,255,0.04));
 }
 .item.due {
-  background: linear-gradient(
-    90deg,
-    rgba(220,150,60,0.24),
-    rgba(255,255,255,0.04)
-  );
+  background: linear-gradient(90deg, rgba(220,150,60,0.24), rgba(255,255,255,0.04));
 }
 .item.paid {
   background: rgba(120,160,140,0.18);
@@ -99,7 +93,6 @@ html, body {
 .item-right {
   font-size: 13px;
   font-weight: 500;
-  opacity: 0.9;
 }
 
 /* ===== PAYMENTS ===== */
@@ -133,46 +126,46 @@ function el(tag, cls, txt) {
   return e;
 }
 
-/* ===== AUTO SCROLL ENGINE (NEW) ===== */
-function enableAutoScroll(container, speed = 0.2) {
-  let y = 0;
+/* ✅ PROPER AUTO SCROLL (scrollTop based) */
+function enableAutoScroll(box) {
   let paused = false;
   let dragging = false;
   let startY = 0;
-  let baseY = 0;
+  let startScroll = 0;
 
-  function loop() {
-    if (!paused && !dragging) {
-      y -= speed;
-      container.style.transform = `translateY(${y}px)`;
-    }
-    requestAnimationFrame(loop);
-  }
+  box.addEventListener("mouseenter", () => paused = true);
+  box.addEventListener("mouseleave", () => paused = false);
 
-  container.addEventListener("mouseenter", () => paused = true);
-  container.addEventListener("mouseleave", () => paused = false);
-
-  container.addEventListener("mousedown", e => {
+  box.addEventListener("mousedown", e => {
     dragging = true;
     paused = true;
     startY = e.clientY;
-    baseY = y;
-    container.style.cursor = "grabbing";
+    startScroll = box.scrollTop;
+    box.style.cursor = "grabbing";
   });
 
   window.addEventListener("mousemove", e => {
     if (!dragging) return;
-    y = baseY + (e.clientY - startY);
-    container.style.transform = `translateY(${y}px)`;
+    box.scrollTop = startScroll - (e.clientY - startY);
   });
 
   window.addEventListener("mouseup", () => {
     if (!dragging) return;
     dragging = false;
     paused = false;
-    container.style.cursor = "grab";
+    box.style.cursor = "default";
   });
 
+  function loop() {
+    if (!paused && !dragging) {
+      if (box.scrollTop + box.clientHeight >= box.scrollHeight) {
+        box.scrollTop = 0;
+      } else {
+        box.scrollTop += 0.3;
+      }
+    }
+    requestAnimationFrame(loop);
+  }
   loop();
 }
 
@@ -200,17 +193,12 @@ function render(view) {
 
     sec.appendChild(scroll);
     root.appendChild(sec);
-
     enableAutoScroll(scroll);
   }
 
   renderCardSection("OVERDUE", cards.overdue, "overdue");
   renderCardSection("DUE", cards.due, "due");
-  renderCardSection(
-    "PAID",
-    cards.paid.filter(i => i.rules.visibility === "visible"),
-    "paid"
-  );
+  renderCardSection("PAID", cards.paid.filter(i => i.rules.visibility === "visible"), "paid");
 
   const payments = view.payments;
   const days = Object.keys(payments);
@@ -240,7 +228,6 @@ function render(view) {
 
     sec.appendChild(scroll);
     root.appendChild(sec);
-
     enableAutoScroll(scroll);
   }
 }
