@@ -12,100 +12,206 @@ html, body {
   height: 100%;
   background: rgba(16,16,16,0.98);
   overflow: hidden;
-  font-family: Inter, system-ui, sans-serif;
+  font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+  color: #eaeaea;
 }
 
-.widget {
-  height: 100%;
-  padding: 16px;
+/* ===== SAFE ZONE ===== */
+.safe-zone {
+  position: absolute;
+  inset: 0;
+  padding: 18px 16px;
   box-sizing: border-box;
-  border-radius: 16px;
 }
 
+/* ===== HEADER ===== */
 .header {
-  font-size: 14px;
+  margin-bottom: 14px;
+}
+
+.header h1 {
+  font-size: 16px;
   font-weight: 600;
-  color: rgba(235,235,235,0.95);
+  margin: 0;
 }
 
-.sub {
+.header span {
   font-size: 11px;
-  color: rgba(180,180,180,0.7);
-  margin-bottom: 12px;
+  opacity: 0.6;
 }
 
+/* ===== SECTIONS ===== */
 .section {
-  margin-top: 12px;
+  margin-top: 14px;
 }
 
 .section-title {
-  font-size: 12px;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  opacity: 0.6;
   margin-bottom: 6px;
-  opacity: 0.85;
 }
 
+/* ===== CARD ITEM ===== */
 .item {
-  padding: 8px 10px;
-  border-radius: 10px;
-  margin-bottom: 6px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 12px;
+  border-radius: 12px;
+  margin-bottom: 8px;
+
+  background: rgba(255,255,255,0.04);
+  box-shadow:
+    inset 0 0 0 1px rgba(255,255,255,0.03),
+    inset 0 0 18px rgba(0,0,0,0.5);
+}
+
+/* Status tints */
+.item.overdue {
+  background: linear-gradient(
+    90deg,
+    rgba(180,60,60,0.25),
+    rgba(255,255,255,0.04)
+  );
+}
+
+.item.due {
+  background: linear-gradient(
+    90deg,
+    rgba(220,150,60,0.22),
+    rgba(255,255,255,0.04)
+  );
+}
+
+.item.paid {
+  background: rgba(120,160,140,0.18);
+}
+
+/* ===== TEXT ===== */
+.item-left {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.item-title {
   font-size: 13px;
+  font-weight: 500;
 }
 
-.high {
-  background: rgba(180,60,60,0.18);
-  color: rgba(255,220,220,0.95);
+.item-sub {
+  font-size: 11px;
+  opacity: 0.7;
 }
 
-.medium {
-  background: rgba(180,120,60,0.18);
-  color: rgba(255,235,200,0.95);
+.item-right {
+  font-size: 13px;
+  font-weight: 500;
+  opacity: 0.9;
 }
 
-.low {
-  background: rgba(120,140,130,0.14);
-  color: rgba(210,210,210,0.8);
+/* ===== PAYMENT GROUP ===== */
+.payment-day {
+  margin-top: 10px;
 }
 
-.muted {
-  opacity: 0.45;
+.payment-label {
+  font-size: 11px;
+  opacity: 0.5;
+  margin-bottom: 6px;
 }
 </style>
 </head>
 
 <body>
-<div class="widget" id="app">
-  <div class="header">Finance Alerts</div>
-  <div class="sub">Auto-generated • IST</div>
+<div class="safe-zone">
+  <div class="header">
+    <h1>Finance Alerts</h1>
+    <span>Auto-generated · IST</span>
+  </div>
+
+  <div id="content"></div>
 </div>
 
 <script>
-async function load() {
-  const res = await fetch("/api/widget/view");
-  const view = await res.json();
-  const app = document.getElementById("app");
-
-  function section(title, items, cls) {
-    if (!items.length) return;
-    const s = document.createElement("div");
-    s.className = "section";
-    s.innerHTML = `<div class="section-title">${title}</div>`;
-    items.forEach(i => {
-      const d = document.createElement("div");
-      d.className = `item ${cls} ${i.rules.visibility === "expired" ? "muted" : ""}`;
-      d.textContent = `${i.provider || ""} • ${i.status_label}`;
-      s.appendChild(d);
-    });
-    app.appendChild(s);
-  }
-
-  section("Overdue", view.cards.overdue, "high");
-  section("Due", view.cards.due, "medium");
-  section("Paid", view.cards.paid.filter(i => i.rules.visibility === "visible"), "low");
+async function loadData() {
+  const res = await fetch("/api/widget/view", { cache: "no-store" });
+  const data = await res.json();
+  render(data);
 }
 
-load();
+function el(tag, cls, txt) {
+  const e = document.createElement(tag);
+  if (cls) e.className = cls;
+  if (txt) e.textContent = txt;
+  return e;
+}
+
+function render(view) {
+  const root = document.getElementById("content");
+
+  /* ===== CARDS ===== */
+  const cards = view.cards;
+
+  function renderCardSection(title, items, cls) {
+    if (!items.length) return;
+    const sec = el("div", "section");
+    sec.appendChild(el("div", "section-title", title));
+    items.forEach(i => {
+      const row = el("div", `item ${cls}`);
+      const left = el("div", "item-left");
+      left.appendChild(el("div", "item-title", `${i.provider} • ${i.last4}`));
+      left.appendChild(el("div", "item-sub", i.rules.status_label));
+      const right = el("div", "item-right",
+        i.amount_due ? `₹${i.amount_due}` : ""
+      );
+      row.append(left, right);
+      sec.appendChild(row);
+    });
+    root.appendChild(sec);
+  }
+
+  renderCardSection("OVERDUE", cards.overdue, "overdue");
+  renderCardSection("DUE", cards.due, "due");
+  renderCardSection("PAID", cards.paid.filter(i => i.rules.visibility === "visible"), "paid");
+
+  /* ===== PAYMENTS ===== */
+  const payments = view.payments;
+  const days = Object.keys(payments);
+
+  if (days.length) {
+    const sec = el("div", "section");
+    sec.appendChild(el("div", "section-title", "PAYMENTS"));
+
+    days.forEach(day => {
+      const group = el("div", "payment-day");
+      group.appendChild(el("div", "payment-label", payments[day].label));
+
+      payments[day].items.forEach(p => {
+        const row = el("div", "item paid");
+        const left = el("div", "item-left");
+        left.appendChild(el("div", "item-title",
+          `${p.provider || "Payment"}`
+        ));
+        left.appendChild(el("div", "item-sub",
+          p.display_name || p.identifier || ""
+        ));
+        const right = el("div", "item-right",
+          p.value ? `₹${p.value}` : ""
+        );
+        row.append(left, right);
+        group.appendChild(row);
+      });
+
+      sec.appendChild(group);
+    });
+
+    root.appendChild(sec);
+  }
+}
+
+loadData();
 </script>
 </body>
 </html>
