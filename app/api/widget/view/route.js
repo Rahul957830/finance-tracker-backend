@@ -205,6 +205,7 @@ export async function GET(request) {
       current_status: s.current_status || null,
 
       provider: s.provider || null,
+      consumer_name: p.consumer_name ?? null,
       last4: s.last4 || null,
       identifier: s.last4 || null,
 
@@ -285,8 +286,8 @@ export async function GET(request) {
       event_id: p.event_id,
       event_type: p.event_type,
       source_id: p.source_id,
-
       provider: p.provider,
+      consumer_name: p.consumer_name ?? null,
       identifier: p.account?.identifier || null,
       display_name: p.account?.display_name ?? null,
       ca_number: p.account?.ca_number || null,
