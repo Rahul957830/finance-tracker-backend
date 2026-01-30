@@ -61,7 +61,13 @@ export async function POST(req) {
       /* -------------------------
          Store raw event (debug)
       ------------------------- */
-      await kv.set(`event:${Date.now()}:${event.event_id}`, event);
+      const consumer_name =
+  resolveConsumerName(event) ?? null;
+
+await kv.set(`event:${Date.now()}:${event.event_id}`, {
+  ...event,
+  consumer_name,
+});
 
       const billId = event.event_id;
       const ccKey = `cc:${billId}`;
