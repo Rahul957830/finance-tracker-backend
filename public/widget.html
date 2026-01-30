@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -11,7 +10,7 @@ html, body {
   padding: 0;
   width: 100%;
   height: 100%;
-  background: transparent; /* allow Notion to show through */
+  background: transparent;
   overflow: hidden;
   font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
   color: #eaeaea;
@@ -22,12 +21,10 @@ html, body {
   position: absolute;
   inset: 0;
   overflow: hidden;
-
-  /* 🔑 EXACT reactor-style flat base */
   background: rgba(16,16,16,0.96);
 }
 
-/* ===== CONTENT PADDING (NOT CONTAINER) ===== */
+/* ===== CONTENT PADDING ===== */
 #content {
   padding: 18px 16px;
   box-sizing: border-box;
@@ -52,7 +49,6 @@ html, body {
   padding: 10px 12px;
   border-radius: 12px;
   margin-bottom: 8px;
-
   background: rgba(255,255,255,0.04);
   box-shadow:
     inset 0 0 0 1px rgba(255,255,255,0.03),
@@ -60,18 +56,10 @@ html, body {
 }
 
 .item.overdue {
-  background: linear-gradient(
-    90deg,
-    rgba(180,60,60,0.28),
-    rgba(255,255,255,0.04)
-  );
+  background: linear-gradient(90deg, rgba(180,60,60,0.28), rgba(255,255,255,0.04));
 }
 .item.due {
-  background: linear-gradient(
-    90deg,
-    rgba(220,150,60,0.24),
-    rgba(255,255,255,0.04)
-  );
+  background: linear-gradient(90deg, rgba(220,150,60,0.24), rgba(255,255,255,0.04));
 }
 .item.paid {
   background: rgba(120,160,140,0.18);
@@ -127,12 +115,6 @@ function el(tag, cls, txt) {
   if (txt) e.textContent = txt;
   return e;
 }
-function formatAmount(v) {
-  if (v === null || v === undefined || v === "" || v === "XXXX") {
-    return "XXXX";
-  }
-  return `₹${v}`;
-}
 
 function formatDate(d) {
   if (!d) return "";
@@ -142,67 +124,47 @@ function formatDate(d) {
     year: "numeric"
   });
 }
-function formatINR(value) {
-  if (
-    value === null ||
-    value === undefined ||
-    value === "" ||
-    value === "XXXX"
-  ) {
-    return "XXXX";
-  }
 
-  const num = Number(value);
-  if (isNaN(num)) return "XXXX";
-
-  return num.toLocaleString("en-IN", {
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 2
-  });
-}
-  
 function render(view) {
   const root = document.getElementById("content");
   const cards = view.cards;
 
   function renderCardSection(title, items, cls) {
     if (!items.length) return;
+
     const sec = el("div", "section");
     sec.appendChild(el("div", "section-title", title));
+
     items.forEach(i => {
       const row = el("div", `item ${cls}`);
       const left = el("div", "item-left");
+
       left.appendChild(el("div", "item-title", `${i.provider} • ${i.last4}`));
+
       let subText = "";
 
-if (cls === "paid") {
-  const paidAt = formatDate(i.paid_at);
-  const method = i.payment_method;
+      if (cls === "paid") {
+        const paidAt = formatDate(i.paid_at);
+        const method = i.payment_method || "";
+        subText = paidAt && method ? `${paidAt} | ${method}` : paidAt || method;
+      } else {
+        const status = i.rules.status_label || "";
+        const dueDate = formatDate(i.due_date);
+        subText = dueDate ? `${status} | ${dueDate}` : status;
+      }
 
-  let icon = "";
-  if (method) {
-    const m = method.toLowerCase();
-    if (m.includes("gpay")) icon = "🟢";
-    else if (m.includes("paytm")) icon = "🔵";
-    else if (m.includes("cred")) icon = "🟣";
-  }
+      left.appendChild(el("div", "item-sub", subText));
 
-  subText = paidAt
-    ? method
-      ? `${paidAt} | ${icon} ${method}`
-      : paidAt
-    : "";
-} else {
-  const status = i.rules.status_label || "";
-  const dueDate = formatDate(i.due_date);
-  subText = dueDate ? `${status} | ${dueDate}` : status;
-}
+      const right = el(
+        "div",
+        "item-right",
+        i.amount_due ? `₹${i.amount_due}` : ""
+      );
 
-left.appendChild(el("div", "item-sub", subText));
-     const right = el("div", "item-right", `₹${formatINR(i.amount_due)}`);
       row.append(left, right);
       sec.appendChild(row);
     });
+
     root.appendChild(sec);
   }
 
@@ -230,7 +192,7 @@ left.appendChild(el("div", "item-sub", subText));
         const left = el("div", "item-left");
         left.appendChild(el("div", "item-title", `${p.provider || "Payment"}`));
         left.appendChild(el("div", "item-sub", p.display_name || p.identifier || ""));
-       const right = el("div", "item-right", `₹${formatINR(p.value)}`);
+        const right = el("div", "item-right", p.value ? `₹${p.value}` : "");
         row.append(left, right);
         group.appendChild(row);
       });
