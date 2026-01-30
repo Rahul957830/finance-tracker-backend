@@ -43,6 +43,8 @@ function getTotalPayable(view) {
 /* ================= RENDER ================= */
 function render(view) {
   const root = document.getElementById("content");
+  if (!root) return; // ✅ SAFETY GUARD
+
   root.innerHTML = "";
 
   const frag = document.createDocumentFragment();
@@ -154,13 +156,16 @@ function render(view) {
   root.appendChild(frag);
 }
 
-/* ===== FIRST PAINT ===== */
-render({
-  cards: { overdue: [], due: [], paid: [] },
-  payments: {},
-  summary: {}
-});
+/* ================= SAFE START ================= */
+document.addEventListener("DOMContentLoaded", () => {
+  // First paint (empty but stable)
+  render({
+    cards: { overdue: [], due: [], paid: [] },
+    payments: {},
+    summary: {}
+  });
 
-/* ===== FETCH AFTER PAINT ===== */
-requestAnimationFrame(loadData);
+  // Fetch after first paint
+  requestAnimationFrame(loadData);
+});
 </script>
