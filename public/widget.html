@@ -16,7 +16,6 @@ html, body {
   color: #eaeaea;
 }
 
-/* ===== SAFE ZONE ===== */
 .safe-zone {
   position: absolute;
   inset: 0;
@@ -24,16 +23,15 @@ html, body {
   background: rgba(16,16,16,0.96);
 }
 
-/* ===== CONTENT ===== */
 #content {
   padding: 18px 16px;
   box-sizing: border-box;
 }
 
-/* ===== SECTIONS ===== */
 .section {
   margin-top: 14px;
 }
+
 .section-title {
   font-size: 11px;
   letter-spacing: 0.08em;
@@ -41,7 +39,6 @@ html, body {
   margin-bottom: 6px;
 }
 
-/* ===== ITEMS ===== */
 .item {
   display: flex;
   justify-content: space-between;
@@ -64,8 +61,10 @@ html, body {
 .item.paid {
   background: rgba(120,160,140,0.18);
 }
+.item.total {
+  background: linear-gradient(90deg, rgba(80,140,220,0.35), rgba(255,255,255,0.04));
+}
 
-/* ===== TEXT ===== */
 .item-left {
   display: flex;
   flex-direction: column;
@@ -85,7 +84,6 @@ html, body {
   opacity: 0.9;
 }
 
-/* ===== PAYMENTS ===== */
 .payment-day {
   margin-top: 10px;
 }
@@ -116,7 +114,6 @@ function el(tag, cls, txt) {
   return e;
 }
 
-/* ===== HELPERS ===== */
 function formatDate(d) {
   if (!d) return "";
   return new Date(d).toLocaleDateString("en-GB", {
@@ -126,30 +123,47 @@ function formatDate(d) {
   });
 }
 
-function formatAmount(v) {
-  if (v === null || v === undefined || v === "" || v === "XXXX") {
+function formatINR(value) {
+  if (value === null || value === undefined || value === "" || value === "XXXX") {
     return "XXXX";
   }
-  return `₹${v}`;
+  const num = Number(value);
+  if (isNaN(num)) return "XXXX";
+  return num.toLocaleString("en-IN", {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 2
+  });
 }
 
-function paymentIcon(method = "") {
-  const m = method.toLowerCase();
-  if (m.includes("gpay")) return "🟢";
-  if (m.includes("paytm")) return "🔵";
-  if (m.includes("upi")) return "💠";
-  if (m.includes("card")) return "💳";
-  return "";
+/* ✅ FIXED: matches VIEW exactly */
+function getTotalPayable(view) {
+  return view?.summary?.cards?.total_payable?.amount ?? null;
 }
 
-/* ===== RENDER ===== */
 function render(view) {
   const root = document.getElementById("content");
-  const cards = view.cards;
+  root.innerHTML = "";
+
+  const cards = view.cards || { overdue: [], due: [], paid: [] };
+
+  /* ===== TOTAL PAYABLE ===== */
+  const totalPayable = getTotalPayable(view);
+  if (totalPayable !== null) {
+    const sec = el("div", "section");
+    const row = el("div", "item total");
+    const left = el("div", "item-left");
+
+    left.appendChild(el("div", "item-title", "TOTAL PAYABLE"));
+    left.appendChild(el("div", "item-sub", "Across all accounts"));
+
+    const right = el("div", "item-right", `₹${formatINR(totalPayable)}`);
+    row.append(left, right);
+    sec.appendChild(row);
+    root.appendChild(sec);
+  }
 
   function renderCardSection(title, items, cls) {
     if (!items.length) return;
-
     const sec = el("div", "section");
     sec.appendChild(el("div", "section-title", title));
 
@@ -157,34 +171,22 @@ function render(view) {
       const row = el("div", `item ${cls}`);
       const left = el("div", "item-left");
 
-      left.appendChild(el("div", "item-title", `${i.provider} • ${i.last4}`));
+      const titleParts = [i.provider, i.last4, i.consumer_name].filter(Boolean);
+      left.appendChild(el("div", "item-title", titleParts.join(" • ")));
 
       let subText = "";
-
       if (cls === "paid") {
         const paidAt = formatDate(i.paid_at);
         const method = i.payment_method;
-        const icon = method ? paymentIcon(method) : "";
-
-        subText = paidAt
-          ? method
-            ? `${paidAt} | ${icon} ${method}`
-            : paidAt
-          : "";
+        subText = paidAt && method ? `${paidAt} | ${method}` : paidAt || "";
       } else {
-        const status = i.rules.status_label || "";
+        const status = i.rules?.status_label || "";
         const dueDate = formatDate(i.due_date);
         subText = dueDate ? `${status} | ${dueDate}` : status;
       }
 
       left.appendChild(el("div", "item-sub", subText));
-
-      const right = el(
-        "div",
-        "item-right",
-        formatAmount(i.amount_due)
-      );
-
+      const right = el("div", "item-right", `₹${formatINR(i.amount_due)}`);
       row.append(left, right);
       sec.appendChild(row);
     });
@@ -194,13 +196,10 @@ function render(view) {
 
   renderCardSection("OVERDUE", cards.overdue, "overdue");
   renderCardSection("DUE", cards.due, "due");
-  renderCardSection(
-    "PAID",
-    cards.paid.filter(i => i.rules.visibility === "visible"),
-    "paid"
-  );
+  renderCardSection("PAID", cards.paid.filter(i => i.rules.visibility === "visible"), "paid");
 
-  const payments = view.payments;
+  /* ===== PAYMENTS ===== */
+  const payments = view.payments || {};
   const days = Object.keys(payments);
 
   if (days.length) {
@@ -214,17 +213,29 @@ function render(view) {
       payments[day].items.forEach(p => {
         const row = el("div", "item paid");
         const left = el("div", "item-left");
+        left.appendChild(el("div", "item-title", p.provider || "Payment"));
 
-        left.appendChild(el("div", "item-title", `${p.provider || "Payment"}`));
+        const parts = [];
+        if (p.display_name) {
+          parts.push(
+            p.display_name.toLowerCase() === "airtel"
+              ? "Airtel Black"
+              : p.display_name
+          );
+        }
+        if (p.consumer_name && p.consumer_name !== p.display_name) {
+          parts.push(p.consumer_name);
+        }
+        if (
+          p.ca_number &&
+          p.ca_number !== p.display_name &&
+          p.ca_number !== p.consumer_name
+        ) {
+          parts.push(p.ca_number);
+        }
 
-        const method = p.payment_method;
-        const icon = method ? paymentIcon(method) : "";
-        const sub = method ? `${icon} ${method}` : "";
-
-        left.appendChild(el("div", "item-sub", sub));
-
-        const right = el("div", "item-right", formatAmount(p.value));
-
+        left.appendChild(el("div", "item-sub", parts.join(" | ")));
+        const right = el("div", "item-right", `₹${formatINR(p.value)}`);
         row.append(left, right);
         group.appendChild(row);
       });
