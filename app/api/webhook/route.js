@@ -3,6 +3,27 @@ import { notifyTelegram } from "../../../lib/notify/telegram";
 import { buildTelegramMessage } from "../../../lib/notify/messageBuilder";
 import { evaluateNotificationRules } from "../../../lib/notify/rules";
 import { kv } from "@vercel/kv";
+import { CONSUMER_REGISTRY } from "../../../lib/registry/consumerRegistry";
+
+function resolveConsumerName(event) {
+  if (!event) return null;
+
+  // 1️⃣ Credit cards → last4
+  if (event.category === "CREDIT_CARD") {
+    const last4 = event.account?.identifier;
+    if (last4 && CONSUMER_REGISTRY.CREDIT_CARD[last4]) {
+      return CONSUMER_REGISTRY.CREDIT_CARD[last4];
+    }
+  }
+
+  // 2️⃣ Non-card payments → CA number
+  const ca = event.account?.ca_number;
+  if (ca && CONSUMER_REGISTRY.PAYMENT_ACCOUNT[ca]) {
+    return CONSUMER_REGISTRY.PAYMENT_ACCOUNT[ca];
+  }
+
+  return null;
+}
 
 export const dynamic = "force-dynamic";
 
