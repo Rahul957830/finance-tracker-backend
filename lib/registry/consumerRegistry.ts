@@ -18,7 +18,7 @@ export const CONSUMER_REGISTRY = {
     // Credit Cards (key = last4)
     "7003": "Amazon Pay",
     "7000": "Coral RuPay",
-    "5006": "MakeMyTrip Platinum",
+    "5006": "MakeMyTrip",
     "XX35": "SimplySAVE",
     "XX22": "Flipkart Visa",
   },
