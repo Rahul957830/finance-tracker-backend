@@ -159,6 +159,16 @@ function formatINR(value) {
     return "XXXX";
   }
 
+  function getTotalPayable(view) {
+  return (
+    view?.total_payable ??
+    view?.summary?.total_payable ??
+    view?.kpi?.total_payable ??
+    view?.overview?.total_payable ??
+    null
+  );
+}
+
   const num = Number(value);
   if (isNaN(num)) return "XXXX";
 
@@ -167,29 +177,34 @@ function formatINR(value) {
     maximumFractionDigits: 2
   });
 }
+
+  console.log("TOTAL PAYABLE DEBUG", view);
   
 function render(view) {
   const root = document.getElementById("content");
   const cards = view.cards;
 
   // ===== TOTAL AMOUNT PAYABLE (SUMMARY TILE) =====
-if (view.total_payable !== undefined && view.total_payable !== null) {
+const totalPayable = getTotalPayable(view);
+
+if (totalPayable !== null) {
   const sec = el("div", "section");
 
-  const row = el("div", "item total");
-
+  const row = el("div", "item overdue"); // reuse overdue tint
   const left = el("div", "item-left");
+
   left.appendChild(
-    el("div", "item-title", "TOTAL AMOUNT DUE")
+    el("div", "item-title", "TOTAL PAYABLE")
   );
+
   left.appendChild(
-    el("div", "item-sub", "Across all overdue & due accounts")
+    el("div", "item-sub", "Across all accounts")
   );
 
   const right = el(
     "div",
     "item-right",
-    `₹${formatINR(view.total_payable)}`
+    `₹${formatINR(totalPayable)}`
   );
 
   row.append(left, right);
