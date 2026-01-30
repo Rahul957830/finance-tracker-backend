@@ -1,289 +1,280 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8" />
-<title>Finance Alerts</title>
-
-<style>
-html, body {
-  margin: 0;
-  padding: 0;
-  width: 100%;
-  height: 100%;
-  background: transparent; /* allow Notion to show through */
-  overflow: hidden;
-  font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
-  color: #eaeaea;
-}
-
-/* ===== SAFE ZONE (MATCHES REACTOR) ===== */
-.safe-zone {
-  position: absolute;
-  inset: 0;
-  overflow: hidden;
-
-  /* 🔑 EXACT reactor-style flat base */
-  background: rgba(16,16,16,0.96);
-}
-
-/* ===== CONTENT PADDING (NOT CONTAINER) ===== */
-#content {
-  padding: 18px 16px;
-  box-sizing: border-box;
-}
-
-/* ===== SECTIONS ===== */
-.section {
-  margin-top: 14px;
-}
-.section-title {
-  font-size: 11px;
-  letter-spacing: 0.08em;
-  opacity: 0.6;
-  margin-bottom: 6px;
-}
-
-/* ===== ITEMS ===== */
-.item {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 10px 12px;
-  border-radius: 12px;
-  margin-bottom: 8px;
-
-  background: rgba(255,255,255,0.04);
-  box-shadow:
-    inset 0 0 0 1px rgba(255,255,255,0.03),
-    inset 0 0 18px rgba(0,0,0,0.5);
-}
-
-.item.overdue {
-  background: linear-gradient(
-    90deg,
-    rgba(180,60,60,0.28),
-    rgba(255,255,255,0.04)
-  );
-}
-.item.due {
-  background: linear-gradient(
-    90deg,
-    rgba(220,150,60,0.24),
-    rgba(255,255,255,0.04)
-  );
-}
-.item.paid {
-  background: rgba(120,160,140,0.18);
-}
-
-/* ===== TEXT ===== */
-.item-left {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-.item-title {
-  font-size: 13px;
-  font-weight: 500;
-}
-.item-sub {
-  font-size: 11px;
-  opacity: 0.7;
-}
-.item-right {
-  font-size: 13px;
-  font-weight: 500;
-  opacity: 0.9;
-}
-
-/* ===== PAYMENTS ===== */
-.payment-day {
-  margin-top: 10px;
-}
-.payment-label {
-  font-size: 11px;
-  opacity: 0.5;
-  margin-bottom: 6px;
-}
-</style>
-</head>
-
-<body>
-<div class="safe-zone">
-  <div id="content"></div>
-</div>
-
-<script>
-async function loadData() {
-  const res = await fetch("/api/widget/view", { cache: "no-store" });
-  const data = await res.json();
-  render(data);
-}
-
-function el(tag, cls, txt) {
-  const e = document.createElement(tag);
-  if (cls) e.className = cls;
-  if (txt) e.textContent = txt;
-  return e;
-}
-function formatAmount(v) {
-  if (v === null || v === undefined || v === "" || v === "XXXX") {
-    return "XXXX";
-  }
-  return `₹${v}`;
-}
-
-function formatDate(d) {
-  if (!d) return "";
-  return new Date(d).toLocaleDateString("en-GB", {
-    day: "2-digit",
-    month: "short",
-    year: "numeric"
-  });
-}
-function formatINR(value) {
-  if (
-    value === null ||
-    value === undefined ||
-    value === "" ||
-    value === "XXXX"
-  ) {
-    return "XXXX";
-  }
-
-  const num = Number(value);
-  if (isNaN(num)) return "XXXX";
-
-  return num.toLocaleString("en-IN", {
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 2
-  });
-}
+<!DOCTYPE html>  <html lang="en">  
+<head>  
+<meta charset="UTF-8" />  
+<title>Finance Alerts</title>  <style>  
+html, body {  
+  margin: 0;  
+  padding: 0;  
+  width: 100%;  
+  height: 100%;  
+  background: transparent; /* allow Notion to show through */  
+  overflow: hidden;  
+  font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, sans-serif;  
+  color: #eaeaea;  
+}  
   
-function render(view) {
-  const root = document.getElementById("content");
-  const cards = view.cards;
-
-  function renderCardSection(title, items, cls) {
-    if (!items.length) return;
-    const sec = el("div", "section");
-    sec.appendChild(el("div", "section-title", title));
-    items.forEach(i => {
-      const row = el("div", `item ${cls}`);
-      const left = el("div", "item-left");
-     const titleParts = [
-  i.provider,
-  i.last4,
-  i.consumer_name
-].filter(Boolean);
-
-left.appendChild(
-  el("div", "item-title", titleParts.join(" • "))
-);
-      let subText = "";
-
-if (cls === "paid") {
-  const paidAt = formatDate(i.paid_at);
-  const method = i.payment_method;
-
-  let icon = "";
-  if (method) {
-    const m = method.toLowerCase();
-    if (m.includes("gpay")) icon = "🟢";
-    else if (m.includes("paytm")) icon = "🔵";
-    else if (m.includes("cred")) icon = "🟣";
-  }
-
-  subText = paidAt
-    ? method
-      ? `${paidAt} | ${icon} ${method}`
-      : paidAt
-    : "";
-} else {
-  const status = i.rules.status_label || "";
-  const dueDate = formatDate(i.due_date);
-  subText = dueDate ? `${status} | ${dueDate}` : status;
-}
-
-left.appendChild(el("div", "item-sub", subText));
-     const right = el("div", "item-right", `₹${formatINR(i.amount_due)}`);
-      row.append(left, right);
-      sec.appendChild(row);
-    });
-    root.appendChild(sec);
-  }
-
-  renderCardSection("OVERDUE", cards.overdue, "overdue");
-  renderCardSection("DUE", cards.due, "due");
-  renderCardSection(
-    "PAID",
-    cards.paid.filter(i => i.rules.visibility === "visible"),
-    "paid"
-  );
-
-  const payments = view.payments;
-  const days = Object.keys(payments);
-
-  if (days.length) {
-    const sec = el("div", "section");
-    sec.appendChild(el("div", "section-title", "PAYMENTS"));
-
-    days.forEach(day => {
-      const group = el("div", "payment-day");
-      group.appendChild(el("div", "payment-label", payments[day].label));
-
-      payments[day].items.forEach(p => {
-        const row = el("div", "item paid");
-        const left = el("div", "item-left");
-        left.appendChild(el("div", "item-title", `${p.provider || "Payment"}`));
-      // Build subtext in strict order:
-// DISPLAY NAME | CONSUMER NAME | CONSUMER NO
-
-const parts = [];
-
-// 1️⃣ Display name (highest priority)
-if (p.display_name) {
-  // Special case: Airtel → show "Airtel Black"
-  if (p.display_name.toLowerCase() === "airtel") {
-    parts.push("Airtel Black");
-  } else {
-    parts.push(p.display_name);
-  }
-}
-
-// 2️⃣ Consumer name (only if present & not same as display name)
-if (
-  p.consumer_name &&
-  p.consumer_name !== p.display_name
-) {
-  parts.push(p.consumer_name);
-}
-
-// 3️⃣ Consumer number (only if present & not duplicate)
-if (
-  p.ca_number &&
-  p.ca_number !== p.display_name &&
-  p.ca_number !== p.consumer_name
-) {
-  parts.push(p.ca_number);
-}
-
-left.appendChild(
-  el("div", "item-sub", parts.join(" | "))
-);
-       const right = el("div", "item-right", `₹${formatINR(p.value)}`);
-        row.append(left, right);
-        group.appendChild(row);
-      });
-
-      sec.appendChild(group);
-    });
-
-    root.appendChild(sec);
-  }
-}
-
-loadData();
-</script>
-</body>
+/* ===== SAFE ZONE (MATCHES REACTOR) ===== */  
+.safe-zone {  
+  position: absolute;  
+  inset: 0;  
+  overflow: hidden;  
+  
+  /* 🔑 EXACT reactor-style flat base */  
+  background: rgba(16,16,16,0.96);  
+}  
+  
+/* ===== CONTENT PADDING (NOT CONTAINER) ===== */  
+#content {  
+  padding: 18px 16px;  
+  box-sizing: border-box;  
+}  
+  
+/* ===== SECTIONS ===== */  
+.section {  
+  margin-top: 14px;  
+}  
+.section-title {  
+  font-size: 11px;  
+  letter-spacing: 0.08em;  
+  opacity: 0.6;  
+  margin-bottom: 6px;  
+}  
+  
+/* ===== ITEMS ===== */  
+.item {  
+  display: flex;  
+  justify-content: space-between;  
+  align-items: center;  
+  padding: 10px 12px;  
+  border-radius: 12px;  
+  margin-bottom: 8px;  
+  
+  background: rgba(255,255,255,0.04);  
+  box-shadow:  
+    inset 0 0 0 1px rgba(255,255,255,0.03),  
+    inset 0 0 18px rgba(0,0,0,0.5);  
+}  
+  
+.item.overdue {  
+  background: linear-gradient(  
+    90deg,  
+    rgba(180,60,60,0.28),  
+    rgba(255,255,255,0.04)  
+  );  
+}  
+.item.due {  
+  background: linear-gradient(  
+    90deg,  
+    rgba(220,150,60,0.24),  
+    rgba(255,255,255,0.04)  
+  );  
+}  
+.item.paid {  
+  background: rgba(120,160,140,0.18);  
+}  
+  
+/* ===== TEXT ===== */  
+.item-left {  
+  display: flex;  
+  flex-direction: column;  
+  gap: 2px;  
+}  
+.item-title {  
+  font-size: 13px;  
+  font-weight: 500;  
+}  
+.item-sub {  
+  font-size: 11px;  
+  opacity: 0.7;  
+}  
+.item-right {  
+  font-size: 13px;  
+  font-weight: 500;  
+  opacity: 0.9;  
+}  
+  
+/* ===== PAYMENTS ===== */  
+.payment-day {  
+  margin-top: 10px;  
+}  
+.payment-label {  
+  font-size: 11px;  
+  opacity: 0.5;  
+  margin-bottom: 6px;  
+}  
+</style>  </head>  <body>  
+<div class="safe-zone">  
+  <div id="content"></div>  
+</div>  <script>  
+async function loadData() {  
+  const res = await fetch("/api/widget/view", { cache: "no-store" });  
+  const data = await res.json();  
+  render(data);  
+}  
+  
+function el(tag, cls, txt) {  
+  const e = document.createElement(tag);  
+  if (cls) e.className = cls;  
+  if (txt) e.textContent = txt;  
+  return e;  
+}  
+function formatAmount(v) {  
+  if (v === null || v === undefined || v === "" || v === "XXXX") {  
+    return "XXXX";  
+  }  
+  return `₹${v}`;  
+}  
+  
+function formatDate(d) {  
+  if (!d) return "";  
+  return new Date(d).toLocaleDateString("en-GB", {  
+    day: "2-digit",  
+    month: "short",  
+    year: "numeric"  
+  });  
+}  
+function formatINR(value) {  
+  if (  
+    value === null ||  
+    value === undefined ||  
+    value === "" ||  
+    value === "XXXX"  
+  ) {  
+    return "XXXX";  
+  }  
+  
+  const num = Number(value);  
+  if (isNaN(num)) return "XXXX";  
+  
+  return num.toLocaleString("en-IN", {  
+    minimumFractionDigits: 0,  
+    maximumFractionDigits: 2  
+  });  
+}  
+    
+function render(view) {  
+  const root = document.getElementById("content");  
+  const cards = view.cards;  
+  
+  function renderCardSection(title, items, cls) {  
+    if (!items.length) return;  
+    const sec = el("div", "section");  
+    sec.appendChild(el("div", "section-title", title));  
+    items.forEach(i => {  
+      const row = el("div", `item ${cls}`);  
+      const left = el("div", "item-left");  
+     const titleParts = [  
+  i.provider,  
+  i.last4,  
+  i.consumer_name  
+].filter(Boolean);  
+  
+left.appendChild(  
+  el("div", "item-title", titleParts.join(" • "))  
+);  
+      let subText = "";  
+  
+if (cls === "paid") {  
+  const paidAt = formatDate(i.paid_at);  
+  const method = i.payment_method;  
+  
+  let icon = "";  
+  if (method) {  
+    const m = method.toLowerCase();  
+    if (m.includes("gpay")) icon = "🟢";  
+    else if (m.includes("paytm")) icon = "🔵";  
+    else if (m.includes("cred")) icon = "🟣";  
+  }  
+  
+  subText = paidAt  
+    ? method  
+      ? `${paidAt} | ${icon} ${method}`  
+      : paidAt  
+    : "";  
+} else {  
+  const status = i.rules.status_label || "";  
+  const dueDate = formatDate(i.due_date);  
+  subText = dueDate ? `${status} | ${dueDate}` : status;  
+}  
+  
+left.appendChild(el("div", "item-sub", subText));  
+     const right = el("div", "item-right", `₹${formatINR(i.amount_due)}`);  
+      row.append(left, right);  
+      sec.appendChild(row);  
+    });  
+    root.appendChild(sec);  
+  }  
+  
+  renderCardSection("OVERDUE", cards.overdue, "overdue");  
+  renderCardSection("DUE", cards.due, "due");  
+  renderCardSection(  
+    "PAID",  
+    cards.paid.filter(i => i.rules.visibility === "visible"),  
+    "paid"  
+  );  
+  
+  const payments = view.payments;  
+  const days = Object.keys(payments);  
+  
+  if (days.length) {  
+    const sec = el("div", "section");  
+    sec.appendChild(el("div", "section-title", "PAYMENTS"));  
+  
+    days.forEach(day => {  
+      const group = el("div", "payment-day");  
+      group.appendChild(el("div", "payment-label", payments[day].label));  
+  
+      payments[day].items.forEach(p => {  
+        const row = el("div", "item paid");  
+        const left = el("div", "item-left");  
+        left.appendChild(el("div", "item-title", `${p.provider || "Payment"}`));  
+      // Build subtext in strict order:  
+// DISPLAY NAME | CONSUMER NAME | CONSUMER NO  
+  
+const parts = [];  
+  
+// 1️⃣ Display name (highest priority)  
+if (p.display_name) {  
+  // Special case: Airtel → show "Airtel Black"  
+  if (p.display_name.toLowerCase() === "airtel") {  
+    parts.push("Airtel Black");  
+  } else {  
+    parts.push(p.display_name);  
+  }  
+}  
+  
+// 2️⃣ Consumer name (only if present & not same as display name)  
+if (  
+  p.consumer_name &&  
+  p.consumer_name !== p.display_name  
+) {  
+  parts.push(p.consumer_name);  
+}  
+  
+// 3️⃣ Consumer number (only if present & not duplicate)  
+if (  
+  p.ca_number &&  
+  p.ca_number !== p.display_name &&  
+  p.ca_number !== p.consumer_name  
+) {  
+  parts.push(p.ca_number);  
+}  
+  
+left.appendChild(  
+  el("div", "item-sub", parts.join(" | "))  
+);  
+       const right = el("div", "item-right", `₹${formatINR(p.value)}`);  
+        row.append(left, right);  
+        group.appendChild(row);  
+      });  
+  
+      sec.appendChild(group);  
+    });  
+  
+    root.appendChild(sec);  
+  }  
+}  
+  
+loadData();  
+</script>  </body>  
 </html>
