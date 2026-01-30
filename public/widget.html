@@ -1,146 +1,18 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8" />
-<title>Finance Alerts</title>
-
-<style>
-html, body {
-  margin: 0;
-  padding: 0;
-  width: 100%;
-  height: 100%;
-  background: transparent; /* allow Notion to show through */
-  overflow: hidden;
-  font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
-  color: #eaeaea;
-}
-
-/* ===== SAFE ZONE (MATCHES REACTOR) ===== */
-.safe-zone {
-  position: absolute;
-  inset: 0;
-  overflow: hidden;
-
-  /* 🔑 EXACT reactor-style flat base */
-  background: rgba(16,16,16,0.96);
-}
-
-/* ===== CONTENT PADDING (NOT CONTAINER) ===== */
-#content {
-  padding: 18px 16px;
-  box-sizing: border-box;
-}
-
-/* ===== SECTIONS ===== */
-.section {
-  margin-top: 14px;
-}
-.section-title {
-  font-size: 11px;
-  letter-spacing: 0.08em;
-  opacity: 0.6;
-  margin-bottom: 6px;
-}
-
-/* ===== ITEMS ===== */
-.item {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 10px 12px;
-  border-radius: 12px;
-  margin-bottom: 8px;
-
-  background: rgba(255,255,255,0.04);
-  box-shadow:
-    inset 0 0 0 1px rgba(255,255,255,0.03),
-    inset 0 0 18px rgba(0,0,0,0.5);
-}
-
-.item.overdue {
-  background: linear-gradient(
-    90deg,
-    rgba(180,60,60,0.28),
-    rgba(255,255,255,0.04)
-  );
-}
-.item.due {
-  background: linear-gradient(
-    90deg,
-    rgba(220,150,60,0.24),
-    rgba(255,255,255,0.04)
-  );
-}
-.item.paid {
-  background: rgba(120,160,140,0.18);
-}
-
-.item.total {
-  background: linear-gradient(
-    90deg,
-    rgba(80,140,220,0.35),
-    rgba(255,255,255,0.04)
-  );
-}
-  
-
-/* ===== TEXT ===== */
-.item-left {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-.item-title {
-  font-size: 13px;
-  font-weight: 500;
-}
-.item-sub {
-  font-size: 11px;
-  opacity: 0.7;
-}
-.item-right {
-  font-size: 13px;
-  font-weight: 500;
-  opacity: 0.9;
-}
-
-/* ===== PAYMENTS ===== */
-.payment-day {
-  margin-top: 10px;
-}
-.payment-label {
-  font-size: 11px;
-  opacity: 0.5;
-  margin-bottom: 6px;
-}
-</style>
-</head>
-
-<body>
-<div class="safe-zone">
-  <div id="content"></div>
-</div>
-
 <script>
+/* ================= FETCH ================= */
 async function loadData() {
   const res = await fetch("/api/widget/view", { cache: "no-store" });
   const data = await res.json();
-  console.log("WIDGET VIEW DATA 👉", data); 
+  console.log("WIDGET VIEW DATA 👉", data);
   render(data);
 }
 
+/* ================= HELPERS ================= */
 function el(tag, cls, txt) {
   const e = document.createElement(tag);
   if (cls) e.className = cls;
-  if (txt) e.textContent = txt;
+  if (txt !== undefined) e.textContent = txt;
   return e;
-}
-function formatAmount(v) {
-  if (v === null || v === undefined || v === "" || v === "XXXX") {
-    return "XXXX";
-  }
-  return `₹${v}`;
 }
 
 function formatDate(d) {
@@ -151,19 +23,13 @@ function formatDate(d) {
     year: "numeric"
   });
 }
+
 function formatINR(value) {
-  if (
-    value === null ||
-    value === undefined ||
-    value === "" ||
-    value === "XXXX"
-  ) {
+  if (value === null || value === undefined || value === "" || value === "XXXX") {
     return "XXXX";
   }
-  
   const num = Number(value);
   if (isNaN(num)) return "XXXX";
-
   return num.toLocaleString("en-IN", {
     minimumFractionDigits: 0,
     maximumFractionDigits: 2
@@ -173,160 +39,128 @@ function formatINR(value) {
 function getTotalPayable(view) {
   return view?.summary?.cards?.total_payable?.amount ?? null;
 }
-  
+
+/* ================= RENDER ================= */
 function render(view) {
   const root = document.getElementById("content");
-  root.innerHTML = ""; // ✅ REQUIRED
+  root.innerHTML = "";
+
+  const frag = document.createDocumentFragment();
   const cards = view.cards || { overdue: [], due: [], paid: [] };
 
-  // ===== TOTAL PAYABLE =====
-const totalPayable = getTotalPayable(view);
-
-if (totalPayable !== null) {
-  const sec = el("div", "section");
-
-  const row = el("div", "item total");
-  const left = el("div", "item-left");
-
-  left.appendChild(el("div", "item-title", "TOTAL PAYABLE"));
-  left.appendChild(el("div", "item-sub", "Across all accounts"));
-
-  const right = el(
-    "div",
-    "item-right",
-    `₹${formatINR(totalPayable)}`
-  );
-
-  row.append(left, right);
-  sec.appendChild(row);
-  root.appendChild(sec);
-}
-
-  function renderCardSection(title, items, cls) {
-    if (!items.length) return;
+  /* ===== TOTAL PAYABLE ===== */
+  const totalPayable = getTotalPayable(view);
+  if (totalPayable !== null) {
     const sec = el("div", "section");
-    sec.appendChild(el("div", "section-title", title));
-    items.forEach(i => {
-      const row = el("div", `item ${cls}`);
-      const left = el("div", "item-left");
-     const titleParts = [
-  i.provider,
-  i.last4,
-  i.consumer_name
-].filter(Boolean);
+    const row = el("div", "item total");
+    const left = el("div", "item-left");
 
-left.appendChild(
-  el("div", "item-title", titleParts.join(" • "))
-);
-      let subText = "";
+    left.appendChild(el("div", "item-title", "TOTAL PAYABLE"));
+    left.appendChild(el("div", "item-sub", "Across all accounts"));
 
-if (cls === "paid") {
-  const paidAt = formatDate(i.paid_at);
-  const method = i.payment_method;
-
-  let icon = "";
-  if (method) {
-    const m = method.toLowerCase();
-    if (m.includes("gpay")) icon = "🟢";
-    else if (m.includes("paytm")) icon = "🔵";
-    else if (m.includes("cred")) icon = "🟣";
+    row.append(left, el("div", "item-right", `₹${formatINR(totalPayable)}`));
+    sec.appendChild(row);
+    frag.appendChild(sec);
   }
 
-  subText = paidAt
-    ? method
-      ? `${paidAt} | ${icon} ${method}`
-      : paidAt
-    : "";
-} else {
-  const status = i.rules.status_label || "";
-  const dueDate = formatDate(i.due_date);
-  subText = dueDate ? `${status} | ${dueDate}` : status;
-}
+  function renderCardSection(title, items, cls) {
+    if (!items?.length) return;
 
-left.appendChild(el("div", "item-sub", subText));
-     const right = el("div", "item-right", `₹${formatINR(i.amount_due)}`);
-      row.append(left, right);
+    const sec = el("div", "section");
+    sec.appendChild(el("div", "section-title", title));
+
+    for (const i of items) {
+      const row = el("div", `item ${cls}`);
+      const left = el("div", "item-left");
+
+      const titleParts = [i.provider, i.last4, i.consumer_name].filter(Boolean);
+      left.appendChild(el("div", "item-title", titleParts.join(" • ")));
+
+      let subText = "";
+      if (cls === "paid") {
+        const paidAt = formatDate(i.paid_at);
+        const method = i.payment_method;
+        subText = paidAt && method ? `${paidAt} | ${method}` : paidAt || "";
+      } else {
+        const status = i.rules?.status_label || "";
+        const dueDate = formatDate(i.due_date);
+        subText = dueDate ? `${status} | ${dueDate}` : status;
+      }
+
+      left.appendChild(el("div", "item-sub", subText));
+      row.append(left, el("div", "item-right", `₹${formatINR(i.amount_due)}`));
       sec.appendChild(row);
-    });
-    root.appendChild(sec);
+    }
+
+    frag.appendChild(sec);
   }
 
   renderCardSection("OVERDUE", cards.overdue, "overdue");
   renderCardSection("DUE", cards.due, "due");
   renderCardSection(
     "PAID",
-    (cards.paid || []).filter(i => i.rules?.visibility === "visible")
+    (cards.paid || []).filter(i => i.rules?.visibility === "visible"),
     "paid"
   );
 
+  /* ===== PAYMENTS ===== */
   const payments = view.payments || {};
- const days = payments ? Object.keys(payments) : [];
+  const days = Object.keys(payments);
 
   if (days.length) {
     const sec = el("div", "section");
     sec.appendChild(el("div", "section-title", "PAYMENTS"));
 
-    days.forEach(day => {
+    for (const day of days) {
       const group = el("div", "payment-day");
       group.appendChild(el("div", "payment-label", payments[day].label));
 
-      payments[day].items.forEach(p => {
+      for (const p of payments[day].items) {
         const row = el("div", "item paid");
         const left = el("div", "item-left");
-        left.appendChild(el("div", "item-title", `${p.provider || "Payment"}`));
-      // Build subtext in strict order:
-// DISPLAY NAME | CONSUMER NAME | CONSUMER NO
 
-const parts = [];
+        left.appendChild(el("div", "item-title", p.provider || "Payment"));
 
-// 1️⃣ Display name (highest priority)
-if (p.display_name) {
-  // Special case: Airtel → show "Airtel Black"
-  if (p.display_name.toLowerCase() === "airtel") {
-    parts.push("Airtel Black");
-  } else {
-    parts.push(p.display_name);
-  }
-}
+        const parts = [];
+        if (p.display_name) {
+          parts.push(
+            p.display_name.toLowerCase() === "airtel"
+              ? "Airtel Black"
+              : p.display_name
+          );
+        }
+        if (p.consumer_name && p.consumer_name !== p.display_name) {
+          parts.push(p.consumer_name);
+        }
+        if (
+          p.ca_number &&
+          p.ca_number !== p.display_name &&
+          p.ca_number !== p.consumer_name
+        ) {
+          parts.push(p.ca_number);
+        }
 
-// 2️⃣ Consumer name (only if present & not same as display name)
-if (
-  p.consumer_name &&
-  p.consumer_name !== p.display_name
-) {
-  parts.push(p.consumer_name);
-}
-
-// 3️⃣ Consumer number (only if present & not duplicate)
-if (
-  p.ca_number &&
-  p.ca_number !== p.display_name &&
-  p.ca_number !== p.consumer_name
-) {
-  parts.push(p.ca_number);
-}
-
-left.appendChild(
-  el("div", "item-sub", parts.join(" | "))
-);
-       const right = el("div", "item-right", `₹${formatINR(p.value)}`);
-        row.append(left, right);
+        left.appendChild(el("div", "item-sub", parts.join(" | ")));
+        row.append(left, el("div", "item-right", `₹${formatINR(p.value)}`));
         group.appendChild(row);
-      });
+      }
 
       sec.appendChild(group);
-    });
+    }
 
-    root.appendChild(sec);
+    frag.appendChild(sec);
   }
+
+  root.appendChild(frag);
 }
 
-// 🔹 First paint immediately (empty but alive)
+/* ===== FIRST PAINT ===== */
 render({
   cards: { overdue: [], due: [], paid: [] },
   payments: {},
   summary: {}
 });
 
-// 🔹 Fetch data AFTER first paint
+/* ===== FETCH AFTER PAINT ===== */
 requestAnimationFrame(loadData);
+</script>
