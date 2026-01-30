@@ -16,9 +16,11 @@
 export const CONSUMER_REGISTRY = {
   CREDIT_CARD: {
     // last4 → card nickname
-    "7003": "ICICI Amazon Credit Card",
-    "4321": "HDFC Millennia Credit Card",
-    "9988": "Axis Flipkart Credit Card",
+    "7003": "Amazon Pay",
+    "7000": "Coral RuPay",
+    "5006": "MakeMyTrip Platinum",
+    "XX35": "SimplySAVE",
+    "XX22": "Flipkart Visa",
   },
 
   PAYMENT_ACCOUNT: {
