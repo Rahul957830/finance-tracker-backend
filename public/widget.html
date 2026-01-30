@@ -256,11 +256,11 @@ if (
 
 // 3️⃣ Consumer number (only if present & not duplicate)
 if (
-  p.identifier &&
-  p.identifier !== p.display_name &&
-  p.identifier !== p.consumer_name
+  p.ca_number &&
+  p.ca_number !== p.display_name &&
+  p.ca_number !== p.consumer_name
 ) {
-  parts.push(p.identifier);
+  parts.push(p.ca_number);
 }
 
 left.appendChild(
