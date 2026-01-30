@@ -25,19 +25,18 @@ export const CONSUMER_REGISTRY = {
 
   PAYMENT_ACCOUNT: {
     // customer / CA numbers → service name
-    "CA987654": "Airtel Broadband",
-    "CA112233": "Tata Power Electricity",
-    "CA556677": "Jio Fiber",
+    "0799414345": "Home- Water",
+    "060006388098": "Home- Electricity",
   },
 
   BANK_ACCOUNT: {
-    // account identifiers → account nickname
+    // account identifiers → account nickname- Examples 
     "1234567890": "ICICI Savings Account",
     "9988776655": "HDFC Salary Account",
   },
 
   UPI: {
-    // UPI IDs → nickname
+    // UPI IDs → nickname- Examples
     "sonu@upi": "Personal UPI",
     "sonu.pay@okicici": "ICICI UPI",
   },
