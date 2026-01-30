@@ -320,7 +320,12 @@ left.appendChild(
   }
 }
 
-loadData();
-</script>
-</body>
-</html>
+// 🔹 First paint immediately (empty but alive)
+render({
+  cards: { overdue: [], due: [], paid: [] },
+  payments: {},
+  summary: {}
+});
+
+// 🔹 Fetch data AFTER first paint
+requestAnimationFrame(loadData);
