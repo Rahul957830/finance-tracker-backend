@@ -127,7 +127,12 @@ export async function GET() {
 });
     }
   }
-
+const sortedPaymentIndexByDate = {};
+Object.keys(paymentIndexByDate)
+  .sort((a, b) => new Date(b) - new Date(a))
+  .forEach(day => {
+    sortedPaymentIndexByDate[day] = paymentIndexByDate[day];
+  });
   /* =========================
      FINAL RESPONSE
   ========================= */
