@@ -205,7 +205,7 @@ export async function GET(request) {
       current_status: s.current_status || null,
 
       provider: s.provider || null,
-      consumer_name: card.consumer_name ?? null,
+      consumer_name: ev.consumer_name ?? null,
       last4: s.last4 || null,
       identifier: s.last4 || null,
 
