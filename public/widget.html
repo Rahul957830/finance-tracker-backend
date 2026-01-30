@@ -159,11 +159,6 @@ function formatINR(value) {
   ) {
     return "XXXX";
   }
-
-  function getTotalPayable(view) {
-  return view?.summary?.cards?.total_payable?.amount ?? null;
-}
-
   
   const num = Number(value);
   if (isNaN(num)) return "XXXX";
@@ -172,6 +167,10 @@ function formatINR(value) {
     minimumFractionDigits: 0,
     maximumFractionDigits: 2
   });
+}
+
+function getTotalPayable(view) {
+  return view?.summary?.cards?.total_payable?.amount ?? null;
 }
   
 function render(view) {
