@@ -236,7 +236,15 @@ left.appendChild(el("div", "item-sub", subText));
         const row = el("div", "item paid");
         const left = el("div", "item-left");
         left.appendChild(el("div", "item-title", `${p.provider || "Payment"}`));
-        left.appendChild(el("div", "item-sub", p.display_name || p.identifier || ""));
+       const subParts = [
+  p.display_name,
+  p.consumer_name,
+  p.identifier
+].filter(Boolean);
+
+left.appendChild(
+  el("div", "item-sub", subParts.join(" | "))
+);
        const right = el("div", "item-right", `₹${formatINR(p.value)}`);
         row.append(left, right);
         group.appendChild(row);
