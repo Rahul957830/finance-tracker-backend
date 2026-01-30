@@ -75,6 +75,14 @@ html, body {
 .item.paid {
   background: rgba(120,160,140,0.18);
 }
+  
+.item.total {
+  background: linear-gradient(
+    90deg,
+    rgba(80,140,220,0.35),
+    rgba(255,255,255,0.04)
+  );
+}
 
 /* ===== TEXT ===== */
 .item-left {
@@ -163,6 +171,31 @@ function formatINR(value) {
 function render(view) {
   const root = document.getElementById("content");
   const cards = view.cards;
+
+  // ===== TOTAL AMOUNT PAYABLE (SUMMARY TILE) =====
+if (view.total_payable !== undefined && view.total_payable !== null) {
+  const sec = el("div", "section");
+
+  const row = el("div", "item total");
+
+  const left = el("div", "item-left");
+  left.appendChild(
+    el("div", "item-title", "TOTAL AMOUNT DUE")
+  );
+  left.appendChild(
+    el("div", "item-sub", "Across all overdue & due accounts")
+  );
+
+  const right = el(
+    "div",
+    "item-right",
+    `₹${formatINR(view.total_payable)}`
+  );
+
+  row.append(left, right);
+  sec.appendChild(row);
+  root.appendChild(sec);
+}
 
   function renderCardSection(title, items, cls) {
     if (!items.length) return;
