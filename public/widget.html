@@ -178,11 +178,11 @@ function formatINR(value) {
   });
 }
 
-  console.log("TOTAL PAYABLE DEBUG", view);
+  console.log("VIEW DEBUG", view);
   
 function render(view) {
   const root = document.getElementById("content");
-  const cards = view.cards;
+  const cards = view.cards || { overdue: [], due: [], paid: [] };
 
   // ===== TOTAL AMOUNT PAYABLE (SUMMARY TILE) =====
 const totalPayable = getTotalPayable(view);
