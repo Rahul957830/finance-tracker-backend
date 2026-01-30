@@ -121,7 +121,10 @@ export async function GET() {
       if (!paymentIndexByDate[dayKey]) {
         paymentIndexByDate[dayKey] = [];
       }
-      paymentIndexByDate[dayKey].push(event.event_id);
+     paymentIndexByDate[dayKey].push({
+  id: event.event_id,
+  paid_at: paidAt,
+});
     }
   }
 
