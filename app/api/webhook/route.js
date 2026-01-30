@@ -156,6 +156,10 @@ if (send && text) {
         ...existing,
         bill_id: billId,
         provider: event.provider,
+        consumer_name:
+  resolveConsumerName(event) ??
+  existing.consumer_name ??
+  null,
         last4: event.account?.identifier ?? existing.last4,
         source_id: event.source_id,
          statement_month: event.dates?.statement_month,
