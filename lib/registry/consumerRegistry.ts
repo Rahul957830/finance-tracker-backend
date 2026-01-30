@@ -15,7 +15,7 @@
 
 export const CONSUMER_REGISTRY = {
   CREDIT_CARD: {
-    // last4 → card nickname
+    // Credit Cards (key = last4)
     "7003": "Amazon Pay",
     "7000": "Coral RuPay",
     "5006": "MakeMyTrip Platinum",
@@ -24,20 +24,9 @@ export const CONSUMER_REGISTRY = {
   },
 
   PAYMENT_ACCOUNT: {
-    // customer / CA numbers → service name
+     // Non-card payments (key = CA / consumer number)
     "0799414345": "Home- Water",
     "060006388098": "Home- Electricity",
   },
 
-  BANK_ACCOUNT: {
-    // account identifiers → account nickname- Examples 
-    "1234567890": "ICICI Savings Account",
-    "9988776655": "HDFC Salary Account",
-  },
-
-  UPI: {
-    // UPI IDs → nickname- Examples
-    "sonu@upi": "Personal UPI",
-    "sonu.pay@okicici": "ICICI UPI",
-  },
 };
