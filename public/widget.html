@@ -176,7 +176,7 @@ function getTotalPayable(view) {
 function render(view) {
   const root = document.getElementById("content");
   root.innerHTML = ""; // ✅ REQUIRED
-  const cards = view.cards;
+  const cards = view.cards || { overdue: [], due: [], paid: [] };
 
   // ===== TOTAL PAYABLE =====
 const totalPayable = getTotalPayable(view);
@@ -258,7 +258,7 @@ left.appendChild(el("div", "item-sub", subText));
     "paid"
   );
 
-  const payments = view.payments;
+  const payments = view.payments || {};
   const days = Object.keys(payments);
 
   if (days.length) {
