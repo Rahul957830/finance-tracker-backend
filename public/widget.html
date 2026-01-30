@@ -126,6 +126,7 @@ html, body {
 async function loadData() {
   const res = await fetch("/api/widget/view", { cache: "no-store" });
   const data = await res.json();
+  console.log("WIDGET VIEW DATA 👉", data); 
   render(data);
 }
 
