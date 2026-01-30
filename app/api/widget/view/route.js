@@ -341,6 +341,28 @@ if (items.length) {
   view.summary.cards.overdue = view.cards.overdue.length;
   view.summary.cards.due = view.cards.due.length;
   view.summary.cards.paid = view.cards.paid.length;
+   /* =========================
+   TOTAL PAYABLE (DUE + OVERDUE)
+========================= */
+
+const totalOverdueAmount = view.cards.overdue.reduce(
+  (sum, c) => sum + (Number(c.amount_due) || 0),
+  0
+);
+
+const totalDueAmount = view.cards.due.reduce(
+  (sum, c) => sum + (Number(c.amount_due) || 0),
+  0
+);
+
+view.summary.cards.total_payable = {
+  amount: totalOverdueAmount + totalDueAmount,
+  currency: "INR",
+  breakdown: {
+    overdue: totalOverdueAmount,
+    due: totalDueAmount,
+  },
+};
   view.summary.payments = Object.values(view.payments).reduce(
     (s, d) => s + d.items.length,
     0
