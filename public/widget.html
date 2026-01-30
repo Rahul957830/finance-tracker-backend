@@ -254,12 +254,12 @@ left.appendChild(el("div", "item-sub", subText));
   renderCardSection("DUE", cards.due, "due");
   renderCardSection(
     "PAID",
-    cards.paid.filter(i => i.rules.visibility === "visible"),
+    (cards.paid || []).filter(i => i.rules?.visibility === "visible")
     "paid"
   );
 
   const payments = view.payments || {};
-  const days = Object.keys(payments);
+ const days = payments ? Object.keys(payments) : [];
 
   if (days.length) {
     const sec = el("div", "section");
