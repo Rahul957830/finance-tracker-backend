@@ -236,14 +236,35 @@ left.appendChild(el("div", "item-sub", subText));
         const row = el("div", "item paid");
         const left = el("div", "item-left");
         left.appendChild(el("div", "item-title", `${p.provider || "Payment"}`));
-       const subParts = [
-  p.display_name,
-  p.consumer_name,
-  p.identifier
-].filter(Boolean);
+      // Build subtext in strict order:
+// DISPLAY NAME | CONSUMER NAME | CONSUMER NO
+
+const parts = [];
+
+// 1️⃣ Display name (highest priority)
+if (p.display_name) {
+  parts.push(p.display_name);
+}
+
+// 2️⃣ Consumer name (only if present & not same as display name)
+if (
+  p.consumer_name &&
+  p.consumer_name !== p.display_name
+) {
+  parts.push(p.consumer_name);
+}
+
+// 3️⃣ Consumer number (only if present & not duplicate)
+if (
+  p.identifier &&
+  p.identifier !== p.display_name &&
+  p.identifier !== p.consumer_name
+) {
+  parts.push(p.identifier);
+}
 
 left.appendChild(
-  el("div", "item-sub", subParts.join(" | "))
+  el("div", "item-sub", parts.join(" | "))
 );
        const right = el("div", "item-right", `₹${formatINR(p.value)}`);
         row.append(left, right);
