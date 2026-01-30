@@ -76,6 +76,15 @@ html, body {
   background: rgba(120,160,140,0.18);
 }
 
+.item.total {
+  background: linear-gradient(
+    90deg,
+    rgba(80,140,220,0.35),
+    rgba(255,255,255,0.04)
+  );
+}
+  
+
 /* ===== TEXT ===== */
 .item-left {
   display: flex;
@@ -151,6 +160,11 @@ function formatINR(value) {
     return "XXXX";
   }
 
+  function getTotalPayable(view) {
+  return view?.summary?.cards?.total_payable?.amount ?? null;
+}
+
+  
   const num = Number(value);
   if (isNaN(num)) return "XXXX";
 
@@ -163,6 +177,29 @@ function formatINR(value) {
 function render(view) {
   const root = document.getElementById("content");
   const cards = view.cards;
+
+  // ===== TOTAL PAYABLE =====
+const totalPayable = getTotalPayable(view);
+
+if (totalPayable !== null) {
+  const sec = el("div", "section");
+
+  const row = el("div", "item total");
+  const left = el("div", "item-left");
+
+  left.appendChild(el("div", "item-title", "TOTAL PAYABLE"));
+  left.appendChild(el("div", "item-sub", "Across all accounts"));
+
+  const right = el(
+    "div",
+    "item-right",
+    `₹${formatINR(totalPayable)}`
+  );
+
+  row.append(left, right);
+  sec.appendChild(row);
+  root.appendChild(sec);
+}
 
   function renderCardSection(title, items, cls) {
     if (!items.length) return;
