@@ -176,6 +176,7 @@ function formatINR(value) {
   
 function render(view) {
   const root = document.getElementById("content");
+  root.innerHTML = ""; // ✅ REQUIRED
   const cards = view.cards;
 
   // ===== TOTAL PAYABLE =====
