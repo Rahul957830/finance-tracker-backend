@@ -150,7 +150,6 @@ Object.keys(paymentIndexByDate)
       },
       payments: {
   by_date: sortedPaymentIndexByDate,
-},
       },
     },
   };
