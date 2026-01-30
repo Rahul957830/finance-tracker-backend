@@ -149,7 +149,8 @@ Object.keys(paymentIndexByDate)
         by_status: cardIndexes,
       },
       payments: {
-        by_date: paymentIndexByDate,
+  by_date: sortedPaymentIndexByDate,
+},
       },
     },
   };
