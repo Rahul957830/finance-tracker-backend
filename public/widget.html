@@ -135,24 +135,18 @@ function formatINR(value) {
   });
 }
 
-/* ✅ MOVED HERE (GLOBAL SCOPE) */
+/* ✅ FIXED: matches VIEW exactly */
 function getTotalPayable(view) {
-  return (
-    view?.total_payable ??
-    view?.summary?.total_payable ??
-    view?.kpi?.total_payable ??
-    view?.overview?.total_payable ??
-    null
-  );
+  return view?.summary?.cards?.total_payable?.amount ?? null;
 }
 
 function render(view) {
   const root = document.getElementById("content");
-  root.innerHTML = ""; // safety clear
+  root.innerHTML = "";
 
   const cards = view.cards || { overdue: [], due: [], paid: [] };
 
-  /* ===== TOTAL PAYABLE TILE ===== */
+  /* ===== TOTAL PAYABLE ===== */
   const totalPayable = getTotalPayable(view);
   if (totalPayable !== null) {
     const sec = el("div", "section");
