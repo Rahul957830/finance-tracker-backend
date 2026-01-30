@@ -243,7 +243,12 @@ const parts = [];
 
 // 1️⃣ Display name (highest priority)
 if (p.display_name) {
-  parts.push(p.display_name);
+  // Special case: Airtel → show "Airtel Black"
+  if (p.display_name.toLowerCase() === "airtel") {
+    parts.push("Airtel Black");
+  } else {
+    parts.push(p.display_name);
+  }
 }
 
 // 2️⃣ Consumer name (only if present & not same as display name)
