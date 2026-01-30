@@ -171,7 +171,15 @@ function render(view) {
     items.forEach(i => {
       const row = el("div", `item ${cls}`);
       const left = el("div", "item-left");
-      left.appendChild(el("div", "item-title", `${i.provider} • ${i.last4}`));
+     const titleParts = [
+  i.provider,
+  i.last4,
+  i.consumer_name
+].filter(Boolean);
+
+left.appendChild(
+  el("div", "item-title", titleParts.join(" • "))
+);
       let subText = "";
 
 if (cls === "paid") {
