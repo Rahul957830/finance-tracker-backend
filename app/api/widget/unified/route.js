@@ -133,6 +133,15 @@ Object.keys(paymentIndexByDate)
   .forEach(day => {
     sortedPaymentIndexByDate[day] = paymentIndexByDate[day];
   });
+
+/* =========================
+   CLEANUP: keep index as event_id[]
+========================= */
+for (const day of Object.keys(sortedPaymentIndexByDate)) {
+  sortedPaymentIndexByDate[day] =
+    sortedPaymentIndexByDate[day].map(e => e.id);
+}
+  
   /* =========================
      FINAL RESPONSE
   ========================= */
