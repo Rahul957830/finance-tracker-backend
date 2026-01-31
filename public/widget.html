@@ -304,9 +304,17 @@ if (cls === "paid") {
       : paidAt
     : "";
 } else {
+  const monthLabel = formatStatementMonth(i.statement_month);
   const status = i.rules.status_label || "";
   const dueDate = formatDate(i.due_date);
-  subText = dueDate ? `${status} | ${dueDate}` : status;
+
+  const parts = [
+    monthLabel,
+    status,
+    dueDate
+  ].filter(Boolean);
+
+  subText = parts.join(" | ");
 }
 
 left.appendChild(el("div", "item-sub", subText));
