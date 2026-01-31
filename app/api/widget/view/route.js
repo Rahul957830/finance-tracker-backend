@@ -238,7 +238,10 @@ export async function GET(request) {
   new Date(a._sort || 0) - new Date(b._sort || 0);
 
   view.cards.overdue.sort(sortDesc);
-   view.cards.due.sort(sortAsc);  
+   view.cards.due.sort((a, b) => {
+  // Soonest due first
+  return (a.days_left ?? Infinity) - (b.days_left ?? Infinity);
+}); 
   view.cards.paid.sort(sortDesc);
 
   view.cards.overdue.forEach(i => delete i.__sort);
