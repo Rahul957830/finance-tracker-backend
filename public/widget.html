@@ -490,6 +490,12 @@ document.addEventListener("visibilitychange", () => {
 // 3️⃣ Poll KV regularly (near-real-time updates)
 setInterval(loadData, 15000); // every 15 seconds
   
+// 4️⃣ Catch silent JS crashes (global safety net)
+window.addEventListener("error", (e) => {
+  console.error("GLOBAL WIDGET ERROR:", e.error || e.message);
+  renderErrorTile(e.error || new Error("Unexpected widget error"));
+});
+  
 </script>
 </body>
 </html>
