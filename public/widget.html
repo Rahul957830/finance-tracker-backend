@@ -68,26 +68,23 @@ html, body {
     rgba(255,255,255,0.04)
   );
 
-  /* Overdue = red */
-.item.overdue {
+  /* 🔴 overdue glow */
   --urgent-glow: rgba(255,120,120,0.18);
   --urgent-glow-strong: rgba(255,120,120,0.45);
 }
 
-}
 .item.due {
   background: linear-gradient(
     90deg,
     rgba(220,150,60,0.24),
     rgba(255,255,255,0.04)
   );
-  /* Overdue = red */
-.item.overdue {
-  --urgent-glow: rgba(255,120,120,0.18);
-  --urgent-glow-strong: rgba(255,120,120,0.45);
+
+  /* 🟠 due glow */
+  --urgent-glow: rgba(255,180,90,0.18);
+  --urgent-glow-strong: rgba(255,180,90,0.45);
 }
 
-}
 .item.paid {
   background: rgba(120,160,140,0.22);
 }
