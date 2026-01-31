@@ -152,17 +152,22 @@ if (send && text) {
     reason: decision.reason,
   });
 
-  console.log("📨 TELEGRAM_MESSAGE", {
-  billId: event.event_id,
-  text,
-});
+ if (send) {
+  const text = buildTelegramMessage({
+    event,
+    cardState: existing,
+    decision,
+  });
 
-  if (send) {
-    const text = buildTelegramMessage({ event, cardState: existing, decision });
-    if (text) {
-      await notifyTelegram({ text });
-    }
+  console.log("📨 TELEGRAM_MESSAGE", {
+    billId: event.event_id,
+    text,
+  });
+
+  if (text) {
+    await notifyTelegram({ text });
   }
+}
 }
 
       /* =========================
