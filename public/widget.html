@@ -359,12 +359,15 @@ left.appendChild(el("div", "item-sub", subText));
     sec.appendChild(el("div", "section-title", "PAYMENTS"));
 
     days.forEach(day => {
+      const visibleItems = payments[day].items.filter(
+  p => p.rules?.visibility === "visible"
+);
+
+if (!visibleItems.length) return;
       const group = el("div", "payment-day");
       group.appendChild(el("div", "payment-label", payments[day].label));
 
-     payments[day].items
-  .filter(p => p.rules?.visibility === "visible")
-  .forEach(p => {
+     visibleItems.forEach(p => {
     const row = el("div", "item paid");
         const left = el("div", "item-left");
         left.appendChild(el("div", "item-title", `${p.provider || "Payment"}`));
