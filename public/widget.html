@@ -299,14 +299,14 @@ if (totalPayable !== null) {
     `₹${formatINR(totalPayable)}`
   );
 
-  row.append(left, right);
-  sec.appendChild(row);
-  root.appendChild(sec);
-} 
-    catch (err) {
-    console.error("WIDGET RENDER ERROR:", err);
-    renderErrorTile(err);
-  }
+ row.append(left, right);
+sec.appendChild(row);
+root.appendChild(sec);
+}          // ✅ CLOSES try block
+catch (err) {
+  console.error("WIDGET RENDER ERROR:", err);
+  renderErrorTile(err);
+}
 }
 
   function renderCardSection(title, items, cls) {
