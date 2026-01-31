@@ -203,6 +203,21 @@ function formatDate(d) {
     year: "numeric"
   });
 }
+
+function formatStatementMonth(v) {
+  if (!v || v.length !== 6) return null;
+
+  const year = v.slice(0, 4);
+  const month = v.slice(4, 6);
+
+  const d = new Date(`${year}-${month}-01`);
+  if (isNaN(d)) return null;
+
+  return d.toLocaleDateString("en-IN", {
+    month: "short",
+    year: "2-digit",
+  }).replace(" ", "'");
+}
 function formatINR(value) {
   if (
     value === null ||
