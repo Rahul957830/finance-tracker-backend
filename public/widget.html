@@ -95,6 +95,10 @@ html, body {
     rgba(80,140,220,0.35),
     rgba(255,255,255,0.04)
   );
+
+  /* 🔵 total payable glow */
+  --urgent-glow: rgba(120,170,255,0.18);
+  --urgent-glow-strong: rgba(120,170,255,0.45);
 }
   
 
@@ -233,7 +237,10 @@ const totalPayable = getTotalPayable(view);
 if (totalPayable !== null) {
   const sec = el("div", "section");
 
-  const row = el("div", "item total");
+ const row = el(
+  "div",
+  `item total${totalPayable > 0 ? " urgent" : ""}`
+);
   const left = el("div", "item-left");
 
   left.appendChild(el("div", "item-title", "TOTAL PAYABLE"));
