@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -10,24 +11,29 @@ html, body {
   padding: 0;
   width: 100%;
   height: 100%;
-  background: transparent;
+  background: transparent; /* allow Notion to show through */
   overflow: hidden;
   font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
   color: #eaeaea;
 }
 
+/* ===== SAFE ZONE (MATCHES REACTOR) ===== */
 .safe-zone {
   position: absolute;
   inset: 0;
   overflow: hidden;
+
+  /* 🔑 EXACT reactor-style flat base */
   background: rgba(16,16,16,0.96);
 }
 
+/* ===== CONTENT PADDING (NOT CONTAINER) ===== */
 #content {
   padding: 18px 16px;
   box-sizing: border-box;
 }
 
+/* ===== SECTIONS ===== */
 .section {
   margin-top: 14px;
 }
@@ -38,6 +44,7 @@ html, body {
   margin-bottom: 6px;
 }
 
+/* ===== ITEMS ===== */
 .item {
   display: flex;
   justify-content: space-between;
@@ -45,7 +52,9 @@ html, body {
   padding: 10px 12px;
   border-radius: 12px;
   margin-bottom: 8px;
+
   background: rgba(255,255,255,0.085);
+
   box-shadow:
     inset 0 0 0 1px rgba(255,255,255,0.03),
     inset 0 0 18px rgba(0,0,0,0.08),
@@ -53,13 +62,25 @@ html, body {
 }
 
 .item.overdue {
-  background: linear-gradient(90deg, rgba(180,60,60,0.28), rgba(255,255,255,0.04));
+  background: linear-gradient(
+    90deg,
+    rgba(180,60,60,0.28),
+    rgba(255,255,255,0.04)
+  );
+
+  /* 🔴 overdue glow */
   --urgent-glow: rgba(255,120,120,0.18);
   --urgent-glow-strong: rgba(255,120,120,0.45);
 }
 
 .item.due {
-  background: linear-gradient(90deg, rgba(220,150,60,0.24), rgba(255,255,255,0.04));
+  background: linear-gradient(
+    90deg,
+    rgba(220,150,60,0.24),
+    rgba(255,255,255,0.04)
+  );
+
+  /* 🟠 due glow */
   --urgent-glow: rgba(255,180,90,0.18);
   --urgent-glow-strong: rgba(255,180,90,0.45);
 }
@@ -69,11 +90,19 @@ html, body {
 }
 
 .item.total {
-  background: linear-gradient(90deg, rgba(80,140,220,0.35), rgba(255,255,255,0.04));
+  background: linear-gradient(
+    90deg,
+    rgba(80,140,220,0.35),
+    rgba(255,255,255,0.04)
+  );
+
+  /* 🔵 total payable glow */
   --urgent-glow: rgba(120,170,255,0.18);
   --urgent-glow-strong: rgba(120,170,255,0.45);
 }
+  
 
+/* ===== TEXT ===== */
 .item-left {
   display: flex;
   flex-direction: column;
@@ -93,6 +122,17 @@ html, body {
   opacity: 0.9;
 }
 
+/* ===== PAYMENTS ===== */
+.payment-day {
+  margin-top: 10px;
+}
+.payment-label {
+  font-size: 11px;
+  opacity: 0.5;
+  margin-bottom: 6px;
+}
+
+/* ===== URGENT BREATH (SUBTLE) ===== */
 @keyframes urgentBreath {
   0% {
     box-shadow:
@@ -101,6 +141,7 @@ html, body {
       0 0 8px var(--urgent-glow);
     filter: brightness(1);
   }
+
   50% {
     box-shadow:
       inset 0 0 0 1px rgba(255,255,255,0.06),
@@ -108,6 +149,7 @@ html, body {
       0 0 18px var(--urgent-glow-strong);
     filter: brightness(1.08);
   }
+
   100% {
     box-shadow:
       inset 0 0 0 1px rgba(255,255,255,0.03),
@@ -117,9 +159,12 @@ html, body {
   }
 }
 
+/* applies breathing */
 .item.urgent {
   animation: urgentBreath 1.5s ease-in-out infinite;
 }
+
+  
 </style>
 </head>
 
@@ -129,49 +174,25 @@ html, body {
 </div>
 
 <script>
-function renderErrorTile(err) {
-  const root = document.getElementById("content");
-  if (!root) return;
-
-  root.innerHTML = "";
-
-  const box = document.createElement("div");
-  box.className = "item overdue";
-
-  const left = document.createElement("div");
-  left.className = "item-left";
-
-  const title = document.createElement("div");
-  title.className = "item-title";
-  title.textContent = "⚠ Widget Error";
-
-  const sub = document.createElement("div");
-  sub.className = "item-sub";
-  sub.textContent = err?.message || "Render failed";
-
-  left.appendChild(title);
-  left.appendChild(sub);
-  box.appendChild(left);
-  root.appendChild(box);
-}
-
 async function loadData() {
-  try {
-    const res = await fetch("/api/widget/view?t=" + Date.now(), { cache: "no-store" });
-    if (!res.ok) throw new Error("API error " + res.status);
-    const data = await res.json();
-    render(data);
-  } catch (err) {
-    console.error(err);
-    renderErrorTile(err);
-  }
+  const res = await fetch(
+    "/api/widget/view?t=" + Date.now(),
+    { cache: "no-store" }
+  );
+  const data = await res.json();
+  render(data);
 }
-
 function el(tag, cls, txt) {
   const e = document.createElement(tag);
   if (cls) e.className = cls;
   if (txt) e.textContent = txt;
   return e;
+}
+function formatAmount(v) {
+  if (v === null || v === undefined || v === "" || v === "XXXX") {
+    return "XXXX";
+  }
+  return `₹${v}`;
 }
 
 function formatDate(d) {
@@ -185,94 +206,228 @@ function formatDate(d) {
 
 function formatStatementMonth(v) {
   if (!v || v.length !== 6) return null;
-  const d = new Date(v.slice(0,4) + "-" + v.slice(4,6) + "-01");
-  if (isNaN(d)) return null;
-  return d.toLocaleDateString("en-IN", { month: "short", year: "2-digit" }).replace(" ", "'");
-}
 
-function formatINR(v) {
-  const n = Number(v);
-  return isNaN(n) ? "XXXX" : n.toLocaleString("en-IN");
+  const year = v.slice(0, 4);
+  const month = v.slice(4, 6);
+
+  const d = new Date(`${year}-${month}-01`);
+  if (isNaN(d)) return null;
+
+  return d.toLocaleDateString("en-IN", {
+    month: "short",
+    year: "2-digit",
+  }).replace(" ", "'");
+}
+function formatINR(value) {
+  if (
+    value === null ||
+    value === undefined ||
+    value === "" ||
+    value === "XXXX"
+  ) {
+    return "XXXX";
+  }
+  
+  const num = Number(value);
+  if (isNaN(num)) return "XXXX";
+
+  return num.toLocaleString("en-IN", {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 2
+  });
 }
 
 function getTotalPayable(view) {
   return view?.summary?.cards?.total_payable?.amount ?? null;
 }
-
+  
 function render(view) {
-  try {
+  const root = document.getElementById("content");
+  root.innerHTML = ""; // ✅ REQUIRED
+  const cards = view.cards;
+
+  // ===== TOTAL PAYABLE =====
+const totalPayable = getTotalPayable(view);
+
+if (totalPayable !== null) {
+  const sec = el("div", "section");
+
+ const row = el(
+  "div",
+  `item total${totalPayable > 0 ? " urgent" : ""}`
+);
+  const left = el("div", "item-left");
+
+  left.appendChild(el("div", "item-title", "TOTAL PAYABLE"));
+  left.appendChild(el("div", "item-sub", "Across all cards"));
+
+  const right = el(
+    "div",
+    "item-right",
+    `₹${formatINR(totalPayable)}`
+  );
+
+  row.append(left, right);
+  sec.appendChild(row);
+  root.appendChild(sec);
+}
 
   function renderCardSection(title, items, cls) {
     if (!items.length) return;
     const sec = el("div", "section");
     sec.appendChild(el("div", "section-title", title));
-
     items.forEach(i => {
-      const isUrgent =
-        i.rules?.urgency === "high" ||
-        (i.rules?.urgency === "medium" && cls === "due" && i.days_left <= 2);
-
-      const row = el("div", `item ${cls}${isUrgent ? " urgent" : ""}`);
+    const isUrgent =
+  i.rules?.urgency === "high" ||
+  (
+    i.rules?.urgency === "medium" &&
+    cls === "due" &&
+    typeof i.days_left === "number" &&
+    i.days_left <= 2
+  );
+const row = el(
+  "div",
+  `item ${cls}${isUrgent ? " urgent" : ""}`
+);
       const left = el("div", "item-left");
+     const titleParts = [
+  i.provider,
+  i.last4,
+  i.consumer_name
+].filter(Boolean);
 
-      left.appendChild(el(
-        "div",
-        "item-title",
-        [i.provider, i.last4, i.consumer_name].filter(Boolean).join(" • ")
-      ));
+left.appendChild(
+  el("div", "item-title", titleParts.join(" • "))
+);
+      let subText = "";
 
-      const parts = [
-        formatStatementMonth(i.statement_month),
-        i.rules?.status_label,
-        formatDate(i.due_date)
-      ].filter(Boolean);
+if (cls === "paid") {
+  const monthLabel = formatStatementMonth(i.statement_month);
+  const paidAt = formatDate(i.paid_at);
+  const method = i.payment_method;
 
-      left.appendChild(el("div", "item-sub", parts.join(" | ")));
-      row.append(left, el("div", "item-right", `₹${formatINR(i.amount_due)}`));
-      sec.appendChild(row);
-    });
-
-    document.getElementById("content").appendChild(sec);
+  let icon = "";
+  if (method) {
+    const m = method.toLowerCase();
+    if (m.includes("gpay")) icon = "🟢";
+    else if (m.includes("paytm")) icon = "🔵";
+    else if (m.includes("cred")) icon = "🟣";
   }
 
-  try {
-    const root = document.getElementById("content");
-    root.innerHTML = "";
+  const parts = [
+  monthLabel,
+  paidAt,
+  method ? `${icon} ${method}` : null
+].filter(Boolean);
 
-    const total = getTotalPayable(view);
-    if (total !== null) {
-      const sec = el("div", "section");
-      const row = el("div", `item total${total > 0 ? " urgent" : ""}`);
-      row.append(
-        el("div", "item-left"),
-        el("div", "item-right", `₹${formatINR(total)}`)
-      );
+subText = parts.join(" | ");
+} else {
+  const monthLabel = formatStatementMonth(i.statement_month);
+  const status = i.rules.status_label || "";
+  const dueDate = formatDate(i.due_date);
+
+  const parts = [
+    monthLabel,
+    status,
+    dueDate
+  ].filter(Boolean);
+
+  subText = parts.join(" | ");
+}
+
+left.appendChild(el("div", "item-sub", subText));
+     const right = el("div", "item-right", `₹${formatINR(i.amount_due)}`);
+      row.append(left, right);
       sec.appendChild(row);
-      root.appendChild(sec);
-    }
+    });
+    root.appendChild(sec);
+  }
 
-    renderCardSection("OVERDUE", view.cards.overdue, "overdue");
-    renderCardSection("DUE", view.cards.due, "due");
-    renderCardSection(
-      "PAID",
-      view.cards.paid.filter(i => i.rules.visibility === "visible"),
-      "paid"
-    );
+  renderCardSection("OVERDUE", cards.overdue, "overdue");
+  renderCardSection("DUE", cards.due, "due");
+  renderCardSection(
+    "PAID",
+    cards.paid.filter(i => i.rules.visibility === "visible"),
+    "paid"
+  );
 
-  } catch (err) {
-    console.error("WIDGET RENDER ERROR:", err);
-    renderErrorTile(err);
+  const payments = view.payments;
+  const days = Object.keys(payments);
+
+  if (days.length) {
+    const sec = el("div", "section");
+    sec.appendChild(el("div", "section-title", "PAYMENTS"));
+
+    days.forEach(day => {
+      const group = el("div", "payment-day");
+      group.appendChild(el("div", "payment-label", payments[day].label));
+
+      payments[day].items.forEach(p => {
+        const row = el("div", "item paid");
+        const left = el("div", "item-left");
+        left.appendChild(el("div", "item-title", `${p.provider || "Payment"}`));
+      // Build subtext in strict order:
+// DISPLAY NAME | CONSUMER NAME | CONSUMER NO
+
+const parts = [];
+
+// 1️⃣ Display name (highest priority)
+if (p.display_name) {
+  // Special case: Airtel → show "Airtel Black"
+  if (p.display_name.toLowerCase() === "airtel") {
+    parts.push("Airtel Black");
+  } else {
+    parts.push(p.display_name);
   }
 }
 
-requestAnimationFrame(loadData);
-document.addEventListener("visibilitychange", () => !document.hidden && loadData());
-setInterval(loadData, 15000);
+// 2️⃣ Consumer name (only if present & not same as display name)
+if (
+  p.consumer_name &&
+  p.consumer_name !== p.display_name
+) {
+  parts.push(p.consumer_name);
+}
 
-window.addEventListener("error", e => {
-  console.error("GLOBAL WIDGET ERROR:", e.error || e.message);
-  renderErrorTile(e.error || new Error("Unexpected widget error"));
+// 3️⃣ Consumer number (only if present & not duplicate)
+if (
+  p.ca_number &&
+  p.ca_number !== p.display_name &&
+  p.ca_number !== p.consumer_name
+) {
+  parts.push(p.ca_number);
+}
+
+left.appendChild(
+  el("div", "item-sub", parts.join(" | "))
+);
+       const right = el("div", "item-right", `₹${formatINR(p.value)}`);
+        row.append(left, right);
+        group.appendChild(row);
+      });
+
+      sec.appendChild(group);
+    });
+
+    root.appendChild(sec);
+  }
+}
+
+/* ================= AUTO REFRESH ================= */
+
+// 1️⃣ First fetch after initial paint
+requestAnimationFrame(loadData);
+
+// 2️⃣ Refresh when user comes back to Notion tab / page
+document.addEventListener("visibilitychange", () => {
+  if (!document.hidden) {
+    loadData();
+  }
 });
+
+// 3️⃣ Poll KV regularly (near-real-time updates)
+setInterval(loadData, 15000); // every 15 seconds
+  
 </script>
 </body>
 </html>
