@@ -302,6 +302,7 @@ left.appendChild(
       let subText = "";
 
 if (cls === "paid") {
+  const monthLabel = formatStatementMonth(i.statement_month);
   const paidAt = formatDate(i.paid_at);
   const method = i.payment_method;
 
@@ -313,11 +314,13 @@ if (cls === "paid") {
     else if (m.includes("cred")) icon = "🟣";
   }
 
-  subText = paidAt
-    ? method
-      ? `${paidAt} | ${icon} ${method}`
-      : paidAt
-    : "";
+  const parts = [
+  monthLabel,
+  paidAt,
+  method ? `${icon} ${method}` : null
+].filter(Boolean);
+
+subText = parts.join(" | ");
 } else {
   const monthLabel = formatStatementMonth(i.statement_month);
   const status = i.rules.status_label || "";
