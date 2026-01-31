@@ -234,9 +234,11 @@ export async function GET(request) {
 
   const sortDesc = (a, b) =>
     new Date(b.__sort || 0) - new Date(a.__sort || 0);
+   const sortAsc = (a, b) =>
+  new Date(a._sort || 0) - new Date(b._sort || 0);
 
   view.cards.overdue.sort(sortDesc);
-  view.cards.due.sort(sortDesc);
+   view.cards.due.sort(sortAsc);  
   view.cards.paid.sort(sortDesc);
 
   view.cards.overdue.forEach(i => delete i.__sort);
