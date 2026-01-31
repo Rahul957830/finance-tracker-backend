@@ -125,11 +125,13 @@ html, body {
 
 <script>
 async function loadData() {
-  const res = await fetch("/api/widget/view", { cache: "no-store" });
+  const res = await fetch(
+    "/api/widget/view?t=" + Date.now(),
+    { cache: "no-store" }
+  );
   const data = await res.json();
   render(data);
 }
-
 function el(tag, cls, txt) {
   const e = document.createElement(tag);
   if (cls) e.className = cls;
@@ -321,7 +323,21 @@ left.appendChild(
   }
 }
 
-loadData();
+/* ================= AUTO REFRESH ================= */
+
+// 1️⃣ First fetch after initial paint
+requestAnimationFrame(loadData);
+
+// 2️⃣ Refresh when user comes back to Notion tab / page
+document.addEventListener("visibilitychange", () => {
+  if (!document.hidden) {
+    loadData();
+  }
+});
+
+// 3️⃣ Poll KV regularly (near-real-time updates)
+setInterval(loadData, 15000); // every 15 seconds
+  
 </script>
 </body>
 </html>
