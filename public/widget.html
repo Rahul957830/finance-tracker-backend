@@ -174,13 +174,44 @@ html, body {
 </div>
 
 <script>
+
+  function renderErrorTile(message) {
+  const root = document.getElementById("content");
+  if (!root) return;
+
+  root.innerHTML = "";
+
+  const row = document.createElement("div");
+  row.className = "item overdue";
+
+  const left = document.createElement("div");
+  left.className = "item-left";
+
+  left.innerHTML = `
+    <div class="item-title">⚠ Widget Error</div>
+    <div class="item-sub">${message}</div>
+  `;
+
+  row.appendChild(left);
+  root.appendChild(row);
+}
 async function loadData() {
-  const res = await fetch(
-    "/api/widget/view?t=" + Date.now(),
-    { cache: "no-store" }
-  );
-  const data = await res.json();
-  render(data);
+  try {
+    const res = await fetch(
+      "/api/widget/view?t=" + Date.now(),
+      { cache: "no-store" }
+    );
+
+    if (!res.ok) {
+      throw new Error("API error " + res.status);
+    }
+
+    const data = await res.json();
+    render(data);
+  } catch (err) {
+    console.error(err);
+    renderErrorTile("Failed to load data");
+  }
 }
 function el(tag, cls, txt) {
   const e = document.createElement(tag);
