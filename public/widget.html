@@ -273,6 +273,7 @@ function getTotalPayable(view) {
 }
   
 function render(view) {
+  try {
   const root = document.getElementById("content");
   root.innerHTML = ""; // ✅ REQUIRED
   const cards = view.cards;
@@ -301,6 +302,10 @@ if (totalPayable !== null) {
   row.append(left, right);
   sec.appendChild(row);
   root.appendChild(sec);
+} catch (err) {
+    console.error("WIDGET RENDER ERROR:", err);
+    renderErrorTile(err);
+  }
 }
 
   function renderCardSection(title, items, cls) {
@@ -442,6 +447,32 @@ left.appendChild(
 
     root.appendChild(sec);
   }
+}
+
+function renderErrorTile(err) {
+  const root = document.getElementById("content");
+  if (!root) return;
+
+  root.innerHTML = "";
+
+  const box = document.createElement("div");
+  box.className = "item overdue";
+
+  const left = document.createElement("div");
+  left.className = "item-left";
+
+  const title = document.createElement("div");
+  title.className = "item-title";
+  title.textContent = "⚠ Widget Error";
+
+  const sub = document.createElement("div");
+  sub.className = "item-sub";
+  sub.textContent = err?.message || "Render failed";
+
+  left.appendChild(title);
+  left.appendChild(sub);
+  box.appendChild(left);
+  root.appendChild(box);
 }
 
 /* ================= AUTO REFRESH ================= */
