@@ -302,7 +302,8 @@ if (totalPayable !== null) {
   row.append(left, right);
   sec.appendChild(row);
   root.appendChild(sec);
-} catch (err) {
+} 
+    catch (err) {
     console.error("WIDGET RENDER ERROR:", err);
     renderErrorTile(err);
   }
