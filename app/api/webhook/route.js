@@ -86,6 +86,11 @@ await kv.set(`event:${Date.now()}:${event.event_id}`, {
   reason: "NON_CARD",
 });
 
+console.log("📨 TELEGRAM_MESSAGE", {
+  billId: event.event_id,
+  text,
+});
+
 if (send && text) {
   await notifyTelegram({ text });
 }  
@@ -146,6 +151,11 @@ if (send && text) {
     id: billId,
     reason: decision.reason,
   });
+
+  console.log("📨 TELEGRAM_MESSAGE", {
+  billId: event.event_id,
+  text,
+});
 
   if (send) {
     const text = buildTelegramMessage({ event, cardState: existing, decision });
