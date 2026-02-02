@@ -97,6 +97,8 @@ export async function GET() {
   /* =========================
      PAYMENTS (event:* excluding CC)
   ========================= */
+  
+  const seenPaymentEventIds = new Set();
   const payments = [];
   const paymentIndexByDate = {};
 
@@ -106,9 +108,15 @@ export async function GET() {
     const event = await kv.get(key);
     if (!event) continue;
 
-    if (event.category === "CREDIT_CARD") continue;
+   if (event.category === "CREDIT_CARD") continue;
 
-    payments.push(event);
+/* dedupe by logical event_id */
+if (seenPaymentEventIds.has(event.event_id)) {
+  continue;
+}
+seenPaymentEventIds.add(event.event_id);
+
+payments.push(event);
 
     const paidAt =
       event.dates?.paid_at ||
